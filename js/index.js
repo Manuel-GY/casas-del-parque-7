@@ -60,6 +60,9 @@
           }
           return null;
         }
+        if (!res.data || !res.data.session) {
+          return res;
+        }
         return SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa })
           .then(function (pr) {
             if (pr.error) {
@@ -76,7 +79,7 @@
           SBH.mostrar("msg", "¡Bienvenido a tu comunidad! Redirigiendo…", "ok");
           window.location.href = "app.html";
         } else {
-          SBH.mostrar("msg", "Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.", "ok");
+          SBH.mostrar("msg", "Te enviamos un correo a " + email + ". Confírmalo y luego inicia sesión.", "ok");
         }
       });
   }
