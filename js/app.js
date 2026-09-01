@@ -4,6 +4,8 @@
   var user = null;
   var profile = null;
   var rol = null;
+  var recCache = [];
+  var filtroSev = "todos";
 
   function chip(txt, css) {
     return '<span class="chip ' + css + '">' + SBH.esc(txt) + "</span>";
@@ -114,6 +116,14 @@
       boot();
     });
 
+    var fsel = document.getElementById("filtro-severidad");
+    if (fsel) {
+      fsel.addEventListener("change", function () {
+        filtroSev = fsel.value;
+        rendReclamos();
+      });
+    }
+
     boot();
   });
 
@@ -187,10 +197,32 @@
   async function cargarReclamos() {
     var wrap = document.getElementById("reclamos-list");
     wrap.innerHTML = '<p class="hint">Cargando…</p>';
+    var sel = document.getElementById("filtro-severidad");
+    if (sel && !sel.options.length) {
+      sel.innerHTML = '<option value="todos">Todas</option>' +
+        Object.keys(SB.SEVERIDAD).map(function (k) {
+          return '<option value="' + k + '">' + SBH.esc(SB.SEVERIDAD[k]) + "</option>";
+        }).join("");
+      sel.value = "todos";
+    }
     var q = await SB.client.rpc("reclamos_detalle");
     if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
-    if (!q.data || !q.data.length) { wrap.innerHTML = '<p class="hint">No hay reclamos aún.</p>'; return; }
-    wrap.innerHTML = q.data.map(tarjetaComite).join("");
+    recCache = q.data || [];
+    rendReclamos();
+  }
+
+  function rendReclamos() {
+    var wrap = document.getElementById("reclamos-list");
+    var lista = filtroSev === "todos"
+      ? recCache
+      : recCache.filter(function (r) { return r.severidad === filtroSev; });
+    if (!lista.length) {
+      wrap.innerHTML = recCache.length
+        ? '<p class="hint">No hay reclamos con esa severidad.</p>'
+        : '<p class="hint">No hay reclamos aún.</p>';
+      return;
+    }
+    wrap.innerHTML = lista.map(tarjetaComite).join("");
     bindResponder();
   }
 
