@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Casas del Parque 7 — Reclamos</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="brand">
+        <div class="logo">CP7</div>
+        <h1>Casas del Parque 7</h1>
+        <p>Reclamos sobre el servicio de guardias</p>
+      </div>
+
+      <div id="msg" class="msg"></div>
+
+      <div class="tabs">
+        <button class="tab active" data-view="login">Iniciar sesión</button>
+        <button class="tab" data-view="register">Registrarse</button>
+      </div>
+
+      <div id="view-login" class="view">
+        <form id="login-form" autocomplete="off">
+          <label>Correo
+            <input type="email" id="login-email" required>
+          </label>
+          <label>Contraseña
+            <input type="password" id="login-pass" required>
+          </label>
+          <button class="btn primary" type="submit">Entrar</button>
+        </form>
+      </div>
+
+      <div id="view-register" class="view" hidden>
+        <form id="register-form" autocomplete="off">
+          <label>Nombre completo
+            <input type="text" id="reg-name" required maxlength="120">
+          </label>
+          <label>Correo
+            <input type="email" id="reg-email" required>
+          </label>
+          <label>Contraseña
+            <input type="password" id="reg-pass" required minlength="6">
+          </label>
+          <p class="hint">Máximo 2 usuarios por casa (142 casas).</p>
+          <label>Número de casa
+            <select id="reg-casa" required></select>
+          </label>
+          <button class="btn primary" type="submit">Crear cuenta</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/index.js"></script>
+</body>
+</html>

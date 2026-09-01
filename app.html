@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Casas del Parque 7 — Panel</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">CP7</div>
+      <div>
+        <div class="app-name">Casas del Parque 7</div>
+      </div>
+    </div>
+    <div class="user">
+      <span class="user-name" id="user-nombre"></span>
+      <span class="badge" id="user-casa"></span>
+      <span class="badge role-vecino" id="user-rol"></span>
+      <button class="btn ghost sm" id="btn-logout">Salir</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div id="msg" class="msg"></div>
+
+    <div id="profiling" class="card hidden">
+      <h2>Completa tu registro</h2>
+      <p class="sub">Tu cuenta ya existe, pero falta asociarla a tu casa. Máximo 2 usuarios por casa.</p>
+      <form id="profiling-form" class="grid-2">
+        <label>Nombre completo
+          <input type="text" id="prof-name" required maxlength="120">
+        </label>
+        <label>Número de casa
+          <select id="prof-casa" required></select>
+        </label>
+        <div>
+          <button class="btn primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="app-main" class="hidden">
+      <nav class="tabs" id="nav"></nav>
+
+      <section id="sec-nuevo" hidden>
+        <div class="card">
+          <h2>Nuevo reclamo</h2>
+          <form id="reclamo-form">
+            <div class="grid-2">
+              <label>Categoría
+                <select id="recl-categoria" required></select>
+              </label>
+              <label>Severidad
+                <select id="recl-severidad" required></select>
+              </label>
+            </div>
+            <label>Título
+              <input type="text" id="recl-titulo" required minlength="3" maxlength="200" placeholder="Ej.: No revisaron la credencial de visita">
+            </label>
+            <label>Descripción
+              <textarea id="recl-descripcion" required minlength="10" maxlength="2000" rows="5" placeholder="Cuenta qué pasó, fecha, hora y lugar."></textarea>
+            </label>
+            <button class="btn primary" type="submit">Enviar reclamo</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="sec-mios" hidden>
+        <div class="card">
+          <h2>Mis reclamos</h2>
+          <div id="mios-list"></div>
+        </div>
+      </section>
+
+      <section id="sec-reclamos" hidden>
+        <div class="card">
+          <h2>Reclamos de la comunidad</h2>
+          <div id="reclamos-list"></div>
+        </div>
+      </section>
+
+      <section id="sec-stats" hidden>
+        <div class="card">
+          <h2>Estadísticas de la comunidad</h2>
+          <div class="stats-grid" id="stats-grid"></div>
+          <div class="grid-2">
+            <div class="card chart-card">
+              <h3>Reclamos por estado</h3>
+              <canvas id="chart-estado" height="180"></canvas>
+            </div>
+            <div class="card chart-card">
+              <h3>Reclamos por categoría</h3>
+              <canvas id="chart-categoria" height="180"></canvas>
+            </div>
+            <div class="card chart-card">
+              <h3>Reclamos por severidad</h3>
+              <canvas id="chart-severidad" height="180"></canvas>
+            </div>
+            <div class="card chart-card">
+              <h3>Reclamos por mes</h3>
+              <canvas id="chart-mes" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-usuarios" hidden>
+        <div class="card">
+          <h2>Usuarios</h2>
+          <p class="sub">Asignar rol. Solo los administradores ven esta sección.</p>
+          <div id="usuarios-list"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
