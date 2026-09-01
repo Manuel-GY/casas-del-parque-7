@@ -83,7 +83,7 @@
     profile = gp.data;
     rol = profile.rol;
     document.getElementById("user-nombre").textContent = profile.nombre;
-    document.getElementById("user-casa").textContent = "Casa " + profile.numero_casa;
+    document.getElementById("user-casa").textContent = profile.numero_casa ? "Casa " + profile.numero_casa : "Sin casa";
     var rl = document.getElementById("user-rol");
     rl.textContent = rol === "comite" ? "Comité" : rol === "admin" ? "Admin" : "Vecino";
     rl.className = "badge role-" + rol;
@@ -294,7 +294,7 @@
       return (
         '<div class="user-row" data-id="' + p.id + '">' +
           '<div><div class="nm">' + SBH.esc(p.nombre) + '</div>' +
-          '<div class="dt">Casa ' + p.numero_casa + " · " + (p.rol === "comite" ? "Comité" : p.rol === "admin" ? "Admin" : "Vecino") + "</div></div>" +
+          '<div class="dt">' + (p.numero_casa ? "Casa " + p.numero_casa : "Sin casa") + " · " + (p.rol === "comite" ? "Comité" : p.rol === "admin" ? "Admin" : "Vecino") + "</div></div>" +
           '<select class="urol">' +
             '<option value="vecino"' + (p.rol === "vecino" ? " selected" : "") + ">Vecino</option>" +
             '<option value="comite"' + (p.rol === "comite" ? " selected" : "") + ">Comité</option>" +

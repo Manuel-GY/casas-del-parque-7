@@ -12,6 +12,31 @@ Aplicación (GitHub Pages + Supabase gratis) para que los vecinos del condominio
 - Toda la lógica viva (login y datos) corre en **Supabase** (plan gratuito): Auth + Postgres con **Row Level Security**, lo que hace que los vecinos *no puedan* leer el detalle de reclamos ajenos aunque conozcan la clave pública del proyecto.
 - **Modo demostración**: mientras `config.js` tenga los valores de ejemplo `PEGA_AQUI_...`, la app usa datos locales en el navegador (registro, reclamos y estadísticas funcionan al instante, pero no se comparten entre vecinos). Al pegar las claves reales de Supabase, pasa sola al modo real.
 
+## Cuentas genéricas de prueba
+
+| Rol | Correo | Contraseña | Casa |
+|---|---|---|---|
+| Administración | `administracion@casasdelparque7.cl` | `AdminCP7#2026` | Sin casa |
+| Comité | `comite@casasdelparque7.cl` | `ComiteCP7#2026` | Sin casa |
+
+> ⚠️ Son cuentas de demostración con claves "conocidas". Cámbialas apenas la comunidad esté en uso real, o reemplaza estas cuentas por las reales.
+
+Para dejarlas con su rol y **sin casa** (ejecutar una vez en SQL Editor):
+
+```sql
+alter table public.profiles alter column numero_casa drop not null;
+
+insert into public.profiles (id, nombre, numero_casa, rol)
+select id, 'Comité Ejecutivo CDP7', null, 'comite'
+from auth.users where email = 'comite@casasdelparque7.cl'
+on conflict (id) do update set rol = 'comite', numero_casa = null, nombre = 'Comité Ejecutivo CDP7';
+
+update public.profiles p
+set rol = 'admin', numero_casa = null, nombre = 'Administración CDP7'
+from auth.users u
+where u.email = 'administracion@casasdelparque7.cl' and u.id = p.id;
+```
+
 ## Pasos de instalación
 
 ### 1) Supabase (una vez)

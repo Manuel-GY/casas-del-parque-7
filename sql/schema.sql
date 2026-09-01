@@ -14,11 +14,11 @@ insert into public.casas (numero)
 select gs from generate_series(1, 142) gs
 on conflict (numero) do nothing;
 
--- 2) PERFILES (1 usuario = 1 vecino; 2 por casa) --------------
+-- 2) PERFILES (1 usuario = 1 vecino; 2 por casa; comité/admin sin casa) -----
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   nombre      text not null check (length(nombre) between 1 and 120),
-  numero_casa integer not null references public.casas(numero),
+  numero_casa integer references public.casas(numero),
   rol         text not null default 'vecino'
               check (rol in ('vecino','comite','admin')),
   created_at  timestamptz not null default now()
@@ -64,12 +64,15 @@ as $$
   select numero_casa from public.profiles where id = auth.uid()
 $$;
 
--- 5) REGISTRO CON LÍMITE DE 2 POR CASA -----------------------
+-- 5) REGISTRO (límite de 2 por casa; comité/admin sin casa) -----------------
 -- SECURITY DEFINER: única vía para crear perfiles (el INSERT directo
 -- está bloqueado por RLS). Valida en la base, no solo en el frontend.
+-- - Vecino: exige número de casa y respeta el cupo de 2 por casa.
+-- - Comité/Administración: sin casa, solo si lo pide un admin.
 create or replace function public.registrar_perfil(
   p_nombre text,
-  p_casa   integer
+  p_casa   integer,
+  p_rol    text default 'vecino'
 )
 returns public.profiles
 language plpgsql security definer
@@ -87,6 +90,26 @@ begin
     raise exception 'Este usuario ya tiene un perfil registrado.';
   end if;
 
+  if p_rol not in ('vecino','comite','admin') then
+    raise exception 'Rol inválido.';
+  end if;
+
+  if p_rol <> 'vecino' then
+    if coalesce(public.mi_rol(),'') <> 'admin' then
+      raise exception 'Solo la administración puede crear cuentas de comité/admin.';
+    end if;
+
+    insert into public.profiles (id, nombre, numero_casa, rol)
+    values (auth.uid(), p_nombre, null, p_rol)
+    returning * into v_perfil;
+
+    return v_perfil;
+  end if;
+
+  if p_casa is null then
+    raise exception 'Los vecinos deben indicar su número de casa.';
+  end if;
+
   if not exists (select 1 from public.casas where numero = p_casa) then
     raise exception 'La casa % no existe.', p_casa;
   end if;
@@ -100,7 +123,7 @@ begin
   end if;
 
   insert into public.profiles (id, nombre, numero_casa, rol)
-  values (auth.uid(), p_nombre, p_casa, 'vecino')
+  values (auth.uid(), p_nombre, p_casa, p_rol)
   returning * into v_perfil;
 
   return v_perfil;
