@@ -36,8 +36,8 @@ Desde ese perfil podrás convertir a otros en comité o admin en la pestaña **U
 ### 3) GitHub Pages
 
 1. Crea el repositorio (público) y súbelo.
-2. El flujo `.github/workflows/pages.yml` publica automáticamente en cada push a `main`.
-3. Activa **Settings → Pages → Source: GitHub Actions** (o ejecuta el flujo una vez).
+2. Activa **Settings → Pages → Source: Deploy from a branch → main /**
+   (GitHub vuelve a publicar automáticamente en cada push a `main`).
 
 ## Desarrollo local
 
@@ -63,7 +63,6 @@ Abre `http://localhost:8080`.
 ├── js/app.js           Panel de vecino / comité / admin
 ├── js/stats.js         Dibujo de gráficos (Canvas, sin dependencias)
 ├── sql/schema.sql      Tablas, RLS y funciones (ejecutar en Supabase)
-└── .github/workflows/pages.yml
 ```
 
 ## Notas
