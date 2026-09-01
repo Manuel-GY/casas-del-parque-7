@@ -91,9 +91,12 @@ begin
     raise exception 'La casa % no existe.', p_casa;
   end if;
 
-  select count(*) into v_cuenta from public.profiles where numero_casa = p_casa;
+  -- El cupo de 2 aplica solo a vecinos: comité/admin no ocupan espacio.
+  select count(*) into v_cuenta
+  from public.profiles
+  where numero_casa = p_casa and rol = 'vecino';
   if v_cuenta >= 2 then
-    raise exception 'La casa % ya tiene sus 2 usuarios registrados.', p_casa;
+    raise exception 'La casa % ya tiene sus 2 vecinos registrados.', p_casa;
   end if;
 
   insert into public.profiles (id, nombre, numero_casa, rol)
