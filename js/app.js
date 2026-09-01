@@ -88,6 +88,10 @@
     rl.textContent = rol === "comite" ? "Comité" : rol === "admin" ? "Admin" : "Vecino";
     rl.className = "badge role-" + rol;
 
+    var primer = String(profile.nombre).split(" ")[0];
+    document.getElementById("welcome-tx").innerHTML =
+      "¡Hola, " + SBH.esc(primer) + '! <span style="color:var(--sun-dark)">☀</span>';
+
     document.getElementById("app-main").classList.remove("hidden");
     llenarReclamoForm();
     await definirNav();

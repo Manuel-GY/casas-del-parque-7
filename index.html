@@ -10,12 +10,21 @@
   <div class="auth-page">
     <div class="auth-card">
       <div class="brand">
-        <div class="logo">CP7</div>
+        <div class="logo">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="4.6" r="1.5" fill="currentColor" stroke="none"></circle>
+            <path d="M2.8 11.6L12 3.5l9.2 8.1"></path>
+            <path d="M5.2 9.6v10.9h13.6V9.6"></path>
+            <path d="M9.7 20.5v-6h4.6v6"></path>
+          </svg>
+        </div>
         <h1>Casas del Parque 7</h1>
-        <p>Reclamos sobre el servicio de guardias</p>
+        <p class="tagline">Vive bien, convive feliz</p>
       </div>
 
       <div id="msg" class="msg"></div>
+
+      <div id="demo-note" class="demo-note hidden"></div>
 
       <div class="tabs">
         <button class="tab active" data-view="login">Iniciar sesión</button>
@@ -30,7 +39,7 @@
           <label>Contraseña
             <input type="password" id="login-pass" required>
           </label>
-          <button class="btn primary" type="submit">Entrar</button>
+          <button class="btn primary" id="login-btn" type="submit">Entrar</button>
         </form>
       </div>
 
@@ -45,19 +54,22 @@
           <label>Contraseña
             <input type="password" id="reg-pass" required minlength="6">
           </label>
-          <p class="hint">Máximo 2 usuarios por casa (142 casas).</p>
+          <p class="hint">Tranquilo: máximo 2 cuentas por casa (hay 142).</p>
           <label>Número de casa
             <select id="reg-casa" required></select>
           </label>
-          <button class="btn primary" type="submit">Crear cuenta</button>
+          <button class="btn primary" id="reg-btn" type="submit">Crear cuenta</button>
         </form>
       </div>
     </div>
   </div>
 
+  <footer class="site">Hecho con cariño por la comunidad · Casas del Parque 7</footer>
+
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/demo.js"></script>
   <script src="js/index.js"></script>
 </body>
 </html>

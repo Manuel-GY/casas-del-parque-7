@@ -9,9 +9,17 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="logo">CP7</div>
+      <div class="logo">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="4.6" r="1.5" fill="currentColor" stroke="none"></circle>
+          <path d="M2.8 11.6L12 3.5l9.2 8.1"></path>
+          <path d="M5.2 9.6v10.9h13.6V9.6"></path>
+          <path d="M9.7 20.5v-6h4.6v6"></path>
+        </svg>
+      </div>
       <div>
         <div class="app-name">Casas del Parque 7</div>
+        <div class="app-sub">Vive bien, convive feliz</div>
       </div>
     </div>
     <div class="user">
@@ -24,6 +32,8 @@
 
   <div class="container">
     <div id="msg" class="msg"></div>
+
+    <div id="demo-note" class="demo-note hidden"></div>
 
     <div id="profiling" class="card hidden">
       <h2>Completa tu registro</h2>
@@ -42,6 +52,11 @@
     </div>
 
     <div id="app-main" class="hidden">
+      <div class="welcome">
+        <h2 id="welcome-tx">¡Hola, vecino! <span style="color:var(--sun-dark)">☀</span></h2>
+        <p>Todos los reclamos se tratan con respeto y buena onda.</p>
+      </div>
+
       <nav class="tabs" id="nav"></nav>
 
       <section id="sec-nuevo" hidden>
@@ -119,6 +134,7 @@
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/demo.js"></script>
   <script src="js/stats.js"></script>
   <script src="js/app.js"></script>
 </body>

@@ -25,10 +25,13 @@
     e.preventDefault();
     var email = document.getElementById("login-email").value.trim();
     var pass = document.getElementById("login-pass").value;
+    var btn = document.getElementById("login-btn");
     SBH.mostrar("msg", "", "ok");
-    if (!SB.configOk) { SBH.mostrar("msg", "Falta configurar config.js con los datos de tu proyecto Supabase.", "error"); return; }
+    if (!SB.configOk) { SBH.mostrar("msg", configFallback(), "error"); return; }
+    cargando(btn, true, "Entrando…");
     SB.client.auth.signInWithPassword({ email: email, password: pass })
       .then(function (res) {
+        cargando(btn, false, "Entrar");
         if (res.error) { SBH.mostrar("msg", res.error.message, "error"); return; }
         window.location.href = "app.html";
       });
@@ -40,18 +43,22 @@
     var email = document.getElementById("reg-email").value.trim();
     var pass = document.getElementById("reg-pass").value;
     var casa = parseInt(document.getElementById("reg-casa").value, 10);
+    var btn = document.getElementById("reg-btn");
     SBH.mostrar("msg", "", "ok");
-    if (!SB.configOk) { SBH.mostrar("msg", "Falta configurar config.js con los datos de tu proyecto Supabase.", "error"); return; }
+    if (!SB.configOk) { SBH.mostrar("msg", configFallback(), "error"); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { SBH.mostrar("msg", "Revisa el correo: parece no ser válido.", "error"); return; }
 
+    cargando(btn, true, "Creando cuenta…");
     SB.client.auth.signUp({ email: email, password: pass })
       .then(function (res) {
         if (res.error) {
+          cargando(btn, false, "Crear cuenta");
           if (/already registered/i.test(res.error.message)) {
-            SBH.mostrar("msg", "Ese correo ya está registrado. Inicia sesión.", "error");
+            SBH.mostrar("msg", "Ese correo ya está registrado. Prueba iniciando sesión.", "error");
           } else {
             SBH.mostrar("msg", res.error.message, "error");
           }
-          return;
+          return null;
         }
         return SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa })
           .then(function (pr) {
@@ -64,13 +71,24 @@
       })
       .then(function (res) {
         if (!res) return;
+        cargando(btn, false, "Crear cuenta");
         if (res.data && res.data.session) {
-          SBH.mostrar("msg", "¡Cuenta creada! Redirigiendo…", "ok");
+          SBH.mostrar("msg", "¡Bienvenido a tu comunidad! Redirigiendo…", "ok");
           window.location.href = "app.html";
         } else {
           SBH.mostrar("msg", "Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.", "ok");
         }
       });
+  }
+
+  function cargando(btn, on, txt) {
+    if (!btn) return;
+    btn.disabled = on;
+    if (txt) btn.textContent = txt;
+  }
+
+  function configFallback() {
+    return "Falta conectar Supabase: pega la URL y la anon key en config.js. Sin eso el registro no puede funcionar.";
   }
 
   document.addEventListener("DOMContentLoaded", function () {
