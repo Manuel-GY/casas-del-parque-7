@@ -264,6 +264,19 @@ begin
         select numero_casa, count(*)::int as n
         from public.reclamos group by numero_casa
       ) t
+    ),
+    'sug_total', (select count(*)::int from public.sugerencias),
+    'sug_por_estado', (
+      select coalesce(jsonb_object_agg(estado, n), '{}'::jsonb)
+      from (select estado, count(*)::int as n from public.sugerencias group by estado) t
+    ),
+    'sug_por_mes', (
+      select coalesce(jsonb_agg(
+        jsonb_build_object('mes', to_char(m, 'YYYY-MM'), 'cantidad', n) order by m), '[]'::jsonb)
+      from (
+        select date_trunc('month', created_at)::date as m, count(*)::int as n
+        from public.sugerencias group by 1
+      ) t
     )
   ) into v_json;
 
@@ -271,10 +284,92 @@ begin
 end;
 $$;
 
+-- 9bis) SUGERENCIAS DE VECINOS --------------------------------
+create table if not exists public.sugerencias (
+  id          uuid primary key default gen_random_uuid(),
+  creado_por  uuid references public.profiles(id) on delete set null,
+  numero_casa integer not null references public.casas(numero),
+  titulo      text not null check (length(titulo) between 3 and 200),
+  descripcion text not null check (length(descripcion) between 10 and 2000),
+  estado      text not null default 'nueva'
+              check (estado in ('nueva','en_revision','resuelta')),
+  respuesta   text,
+  atendido_por uuid references public.profiles(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists sugerencias_casa_idx on public.sugerencias(numero_casa);
+create index if not exists sugerencias_fecha_idx on public.sugerencias(created_at);
+
+-- Detalle de sugerencias (solo comité/admin)
+create or replace function public.sugerencias_detalle()
+returns table (
+  id             uuid,
+  titulo         text,
+  descripcion    text,
+  estado         text,
+  respuesta      text,
+  nombre         text,
+  numero_casa    integer,
+  atendido_nombre text,
+  created_at     timestamptz
+)
+language plpgsql stable security definer
+set search_path = public
+as $$
+begin
+  if coalesce(public.mi_rol(),'') not in ('comite','admin') then
+    raise exception 'Sin permisos para ver el detalle de sugerencias.';
+  end if;
+
+  return query
+    select s.id, s.titulo, s.descripcion, s.estado, s.respuesta,
+           p.nombre, s.numero_casa,
+           pa.nombre as atendido_nombre,
+           s.created_at
+    from public.sugerencias s
+    left join public.profiles p  on p.id  = s.creado_por
+    left join public.profiles pa on pa.id = s.atendido_por
+    order by s.created_at desc;
+end;
+$$;
+
+-- Responder / cambiar estado de sugerencia (solo comité/admin)
+create or replace function public.responder_sugerencia(
+  p_id        uuid,
+  p_estado    text,
+  p_respuesta text default null
+)
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+begin
+  if coalesce(public.mi_rol(),'') not in ('comite','admin') then
+    raise exception 'Sin permisos.';
+  end if;
+
+  if p_estado not in ('nueva','en_revision','resuelta') then
+    raise exception 'Estado inválido.';
+  end if;
+
+  update public.sugerencias
+  set estado       = p_estado,
+      respuesta    = coalesce(p_respuesta, respuesta),
+      atendido_por = auth.uid()
+  where id = p_id;
+
+  if not found then
+    raise exception 'Sugerencia no encontrada.';
+  end if;
+end;
+$$;
+
 -- 10) ROW LEVEL SECURITY -------------------------------------
-alter table public.casas     enable row level security;
-alter table public.profiles  enable row level security;
-alter table public.reclamos  enable row level security;
+alter table public.casas      enable row level security;
+alter table public.profiles   enable row level security;
+alter table public.reclamos   enable row level security;
+alter table public.sugerencias enable row level security;
 
 drop policy if exists "casas_lectura" on public.casas;
 create policy "casas_lectura" on public.casas
@@ -309,6 +404,30 @@ create policy "reclamos_select_mios" on public.reclamos
 -- Comité/admin: ven el detalle de todos.
 drop policy if exists "reclamos_select_comite" on public.reclamos;
 create policy "reclamos_select_comite" on public.reclamos
+  for select to authenticated
+  using (coalesce(public.mi_rol(),'') in ('comite','admin'));
+
+-- Vecino: crea sugerencias solo a su nombre y su casa.
+drop policy if exists "sugerencias_insert" on public.sugerencias;
+create policy "sugerencias_insert" on public.sugerencias
+  for insert to authenticated
+  with check (
+    exists (select 1 from public.profiles where id = auth.uid())
+    and creado_por = auth.uid()
+    and numero_casa = public.mi_casa()
+    and estado = 'nueva'
+    and respuesta is null
+  );
+
+-- Vecino: ve solo sus propias sugerencias.
+drop policy if exists "sugerencias_select_mias" on public.sugerencias;
+create policy "sugerencias_select_mias" on public.sugerencias
+  for select to authenticated
+  using (creado_por = auth.uid());
+
+-- Comité/admin: ven el detalle de todas.
+drop policy if exists "sugerencias_select_comite" on public.sugerencias;
+create policy "sugerencias_select_comite" on public.sugerencias
   for select to authenticated
   using (coalesce(public.mi_rol(),'') in ('comite','admin'));
 

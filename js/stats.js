@@ -377,6 +377,18 @@
   function drawBars(canvas, labels, values) {
     if (!canvas || !canvas.getContext) return;
     var rec = ensureRecord(canvas);
+
+    /* Si el canvas está oculto (p.ej. la sección aún en display:none al
+       entrar a Estadísticas en un móvil lento), espera a que sea visible
+       antes de dibujar. Dibujar con ancho 0 estira/emborrona la gráfica. */
+    var vis = canvas.clientWidth && canvas.clientWidth > 0;
+    if (!vis) {
+      rec.labels = labels || [];
+      rec.values = values || [];
+      raf(function () { drawBars(canvas, labels, values); });
+      return;
+    }
+
     if (rec.raf) { caf(rec.raf); rec.raf = 0; }
     rec.labels = labels || [];
     rec.values = values || [];

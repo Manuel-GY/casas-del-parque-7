@@ -88,6 +88,28 @@
         </div>
       </section>
 
+      <section id="sec-sugerir" hidden>
+        <div class="card">
+          <h2>Ingresar sugerencia</h2>
+          <form id="sugerencia-form">
+            <label>Título de tu sugerencia
+              <input type="text" id="sug-titulo" required minlength="3" maxlength="200" placeholder="Ej.: Mejorar la iluminación de los pasillos">
+            </label>
+            <label>Detalle
+              <textarea id="sug-descripcion" required minlength="10" maxlength="2000" rows="5"></textarea>
+            </label>
+            <button class="btn primary" type="submit">Enviar sugerencia</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="sec-mias" hidden>
+        <div class="card">
+          <h2>Mis sugerencias</h2>
+          <div id="mias-list"></div>
+        </div>
+      </section>
+
       <section id="sec-reclamos" hidden>
         <div class="card">
           <h2>Reclamos de la comunidad</h2>
@@ -96,6 +118,13 @@
             <select id="filtro-severidad"><option value="todos">Todas</option></select>
           </div>
           <div id="reclamos-list"></div>
+        </div>
+      </section>
+
+      <section id="sec-sugerencias" hidden>
+        <div class="card">
+          <h2>Sugerencias de la comunidad</h2>
+          <div id="sugerencias-list"></div>
         </div>
       </section>
 
@@ -119,6 +148,17 @@
             <div class="card chart-card">
               <h3>Reclamos por mes</h3>
               <canvas id="chart-mes" height="200"></canvas>
+            </div>
+          </div>
+          <div class="stats-grid" id="stats-grid-sug" style="margin-top: 4px;"></div>
+          <div class="grid-2">
+            <div class="card chart-card">
+              <h3>Sugerencias por estado</h3>
+              <canvas id="chart-sug-estado" height="200"></canvas>
+            </div>
+            <div class="card chart-card">
+              <h3>Sugerencias por mes</h3>
+              <canvas id="chart-sug-mes" height="200"></canvas>
             </div>
           </div>
         </div>

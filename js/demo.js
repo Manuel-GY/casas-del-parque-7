@@ -10,7 +10,7 @@
       var d;
       try { d = raw ? JSON.parse(raw) : null; } catch (e) { d = null; }
       if (!d) {
-        d = { users: [], profiles: [], reclamos: [], seq: 1 };
+        d = { users: [], profiles: [], reclamos: [], sugerencias: [], seq: 1 };
         guardar(d);
       }
       return d;
@@ -58,7 +58,8 @@
 
     function consultarReclamos(state, u, d) {
       var rol = u ? rolDe(u.id, d) : null;
-      var lista = d.reclamos.filter(function (r) {
+      var tabla = state.tabla === "sugerencias" ? d.sugerencias : d.reclamos;
+      var lista = tabla.filter(function (r) {
         if (esCoAd(rol)) return true;
         return r.creado_por === (u && u.id);
       });
@@ -85,12 +86,17 @@
           var u = sesion();
           var rol = u ? rolDe(u.id, d) : null;
           var ownCasa = u ? casaDe(u.id, d) : null;
-          var pk = state.tabla === "reclamos" ? "reclamos" : "profiles";
+          var esSug = state.tabla === "sugerencias";
+          var pk = esSug ? "sugerencias" : (state.tabla === "reclamos" ? "reclamos" : "profiles");
           var regs = rows.map(function (row) {
             var r = {};
             Object.keys(row).forEach(function (k) { r[k] = row[k]; });
             if (pk === "reclamos") {
               r.id = genId("r");
+              r.created_at = new Date().toISOString();
+            } else if (pk === "sugerencias") {
+              r.id = genId("s");
+              r.estado = "nueva";
               r.created_at = new Date().toISOString();
             } else {
               r.id = genId("u");
@@ -103,6 +109,12 @@
               if (!u || !esCoAd(rol) && rol !== "vecino") return err("Necesitas un perfil para reclamar.");
               if (regs[i].numero_casa !== ownCasa) return err("El reclamo debe ser de tu casa.");
               if (regs[i].estado !== "nuevo") return err("Los reclamos nuevos empiezan como 'nuevo'.");
+            }
+          }
+          if (pk === "sugerencias") {
+            for (var i = 0; i < regs.length; i++) {
+              if (!u || !esCoAd(rol) && rol !== "vecino") return err("Necesitas un perfil para sugerir.");
+              if (regs[i].numero_casa !== ownCasa) return err("La sugerencia debe ser de tu casa.");
             }
           }
           d[pk] = d[pk].concat(regs);
@@ -169,6 +181,30 @@
         guardar(d);
         return ok(null);
       }
+      if (nombre === "sugerencias_detalle") {
+        if (!esCoAd(rolDe(u.id, d))) return err("Sin permisos para ver el detalle de sugerencias.");
+        var sl = d.sugerencias.slice().sort(function (a, b) { return a.created_at > b.created_at ? -1 : 1; });
+        var sdata = sl.map(function (s) {
+          var q = d.profiles.find(function (x) { return x.id === s.creado_por; });
+          var a = s.atendido_por ? d.profiles.find(function (x) { return x.id === s.atendido_por; }) : null;
+          return {
+            id: s.id, titulo: s.titulo, descripcion: s.descripcion, estado: s.estado,
+            respuesta: s.respuesta, nombre: q ? q.nombre : null, numero_casa: s.numero_casa,
+            atendido_nombre: a ? a.nombre : null, created_at: s.created_at
+          };
+        });
+        return ok(sdata);
+      }
+      if (nombre === "responder_sugerencia") {
+        if (!esCoAd(rolDe(u.id, d))) return err("Sin permisos.");
+        var ss = d.sugerencias.find(function (x) { return x.id === args.p_id; });
+        if (!ss) return err("Sugerencia no encontrada.");
+        ss.estado = args.p_estado;
+        if (args.p_respuesta) ss.respuesta = args.p_respuesta;
+        ss.atendido_por = u.id;
+        guardar(d);
+        return ok(null);
+      }
       if (nombre === "estadisticas") {
         var cnt = function (f) { return d.reclamos.filter(f).length; };
         var agrupar = function (campo) {
@@ -189,13 +225,34 @@
           });
           return Object.keys(m).sort().map(function (k) { return { mes: k, cantidad: m[k] }; });
         })();
+        var agruparSug = function (campo) {
+          var m = {};
+          d.sugerencias.forEach(function (s) {
+            var k = s[campo];
+            if (!m[k]) m[k] = 0;
+            m[k]++;
+          });
+          return m;
+        };
+        var sugPorMes = (function () {
+          var m = {};
+          d.sugerencias.forEach(function (s) {
+            var k = String(s.created_at).slice(0, 7);
+            if (!m[k]) m[k] = 0;
+            m[k]++;
+          });
+          return Object.keys(m).sort().map(function (k) { return { mes: k, cantidad: m[k] }; });
+        })();
         return ok({
           total: d.reclamos.length,
           por_estado: agrupar("estado"),
           por_categoria: agrupar("categoria"),
           por_severidad: agrupar("severidad"),
           por_mes: porMes,
-          por_casa: d.reclamos.map(function (r) { return { casa: r.numero_casa, cantidad: 1 }; })
+          por_casa: d.reclamos.map(function (r) { return { casa: r.numero_casa, cantidad: 1 }; }),
+          sug_total: d.sugerencias.length,
+          sug_por_estado: agruparSug("estado"),
+          sug_por_mes: sugPorMes
         });
       }
       return err("Función desconocida en modo demo.");

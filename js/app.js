@@ -24,11 +24,14 @@
 
     var tabs = [
       { id: "sec-nuevo", txt: "Nuevo reclamo" },
-      { id: "sec-mios", txt: "Mis reclamos" }
+      { id: "sec-mios", txt: "Mis reclamos" },
+      { id: "sec-sugerir", txt: "Ingresar sugerencia" },
+      { id: "sec-mias", txt: "Mis sugerencias" }
     ];
     if (rol === "comite" || rol === "admin") {
       tabs = [
         { id: "sec-reclamos", txt: "Reclamos" },
+        { id: "sec-sugerencias", txt: "Sugerencias" },
         { id: "sec-stats", txt: "Estadísticas" }
       ];
       if (rol === "admin") tabs.push({ id: "sec-usuarios", txt: "Usuarios" });
@@ -49,14 +52,16 @@
   }
 
   function mostrarSeccion(id) {
-    var secciones = ["sec-nuevo", "sec-mios", "sec-reclamos", "sec-stats", "sec-usuarios"];
+    var secciones = ["sec-nuevo", "sec-mios", "sec-sugerir", "sec-mias", "sec-reclamos", "sec-sugerencias", "sec-stats", "sec-usuarios"];
     secciones.forEach(function (s) { document.getElementById(s).hidden = (s !== id); });
     document.querySelectorAll("#nav .tab").forEach(function (t) {
       t.classList.toggle("active", t.dataset.target === id);
     });
 
     if (id === "sec-mios") cargarMios();
+    if (id === "sec-mias") cargarMias();
     if (id === "sec-reclamos") cargarReclamos();
+    if (id === "sec-sugerencias") cargarSugerencias();
     if (id === "sec-stats") setTimeout(cargarStats, 40);
     if (id === "sec-usuarios") cargarUsuarios();
   }
@@ -96,6 +101,7 @@
 
     document.getElementById("app-main").classList.remove("hidden");
     llenarReclamoForm();
+    llenarSugerenciaForm();
     await definirNav();
   }
 
@@ -159,6 +165,55 @@
       SBH.mostrar("msg", "Reclamo enviado. El comité lo revisará.", "ok");
       e.target.reset();
     });
+  }
+
+  /* ---------- Vecino: nueva sugerencia ---------- */
+
+  function llenarSugerenciaForm() {
+    document.getElementById("sugerencia-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      SBH.mostrar("msg", "", "ok");
+      var payload = {
+        creado_por: user.id,
+        numero_casa: profile.numero_casa,
+        titulo: document.getElementById("sug-titulo").value.trim(),
+        descripcion: document.getElementById("sug-descripcion").value.trim()
+      };
+      var ins = await SB.client.from("sugerencias").insert([payload]);
+      if (ins.error) { SBH.mostrar("msg", ins.error.message, "error"); return; }
+      SBH.mostrar("msg", "Sugerencia enviada. El comité la revisará.", "ok");
+      e.target.reset();
+    });
+  }
+
+  /* ---------- Vecino: mis sugerencias ---------- */
+
+  async function cargarMias() {
+    var wrap = document.getElementById("mias-list");
+    var q = await SB.client.from("sugerencias")
+      .select("*")
+      .eq("creado_por", user.id)
+      .order("created_at", { ascending: false });
+    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
+    if (!q.data.length) { wrap.innerHTML = '<p class="hint">Aún no has enviado sugerencias.</p>'; return; }
+    wrap.innerHTML = q.data.map(tarjetaSugerenciaMia).join("");
+  }
+
+  function tarjetaSugerenciaMia(s) {
+    var resp = s.respuesta
+      ? '<div class="respuesta-box"><b>Respuesta del comité:</b> ' + SBH.esc(s.respuesta) + "</div>" : "";
+    return (
+      '<div class="reclamo">' +
+        '<div class="head">' +
+          '<div>' +
+            '<div class="titulo">' + SBH.esc(s.titulo) + "</div>" +
+            '<div class="meta">' + SBH.fmtFecha(s.created_at) + "</div>" +
+          "</div>" +
+          '<div>' + chip(SB.ESTADOS[{ nueva: "nuevo", en_revision: "en_revision", resuelta: "resuelto" }[s.estado]] || s.estado, "estado-" + ({ nueva: "nuevo", en_revision: "en_revision", resuelta: "resuelto" }[s.estado])) + "</div>" +
+        "</div>" +
+        '<div class="desc">' + SBH.esc(s.descripcion) + "</div>" + resp +
+      "</div>"
+    );
   }
 
   /* ---------- Vecino: mis reclamos ---------- */
@@ -277,6 +332,67 @@
     });
   }
 
+  /* ---------- Comité/Admin: sugerencias + responder ---------- */
+
+  async function cargarSugerencias() {
+    var wrap = document.getElementById("sugerencias-list");
+    wrap.innerHTML = '<p class="hint">Cargando…</p>';
+    var q = await SB.client.rpc("sugerencias_detalle");
+    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
+    if (!q.data || !q.data.length) { wrap.innerHTML = '<p class="hint">No hay sugerencias aún.</p>'; return; }
+    wrap.innerHTML = q.data.map(tarjetaSugerencia).join("");
+    bindResponderSug();
+  }
+
+  function tarjetaSugerencia(s) {
+    var resp = s.respuesta
+      ? '<div class="respuesta-box"><b>Respuesta:</b> ' + SBH.esc(s.respuesta) + "</div>" : "";
+    var map = { nueva: "nuevo", en_revision: "en_revision", resuelta: "resuelto" };
+    return (
+      '<div class="reclamo" data-id="' + s.id + '">' +
+        '<div class="head">' +
+          '<div>' +
+            '<div class="titulo">' + SBH.esc(s.titulo) + "</div>" +
+            '<div class="meta"><b>Casa ' + s.numero_casa + "</b>" +
+              (s.nombre ? " · " + SBH.esc(s.nombre) : "") +
+              " · " + SBH.fmtFecha(s.created_at) + "</div>" +
+          "</div>" +
+          '<div>' + chip({ nueva: "Nueva", en_revision: "En revisión", resuelta: "Resuelta" }[s.estado] || s.estado, "estado-" + (map[s.estado] || s.estado)) + "</div>" +
+        "</div>" +
+        '<div class="desc">' + SBH.esc(s.descripcion) + "</div>" + resp +
+        '<form class="responder" style="margin-top:12px; display:grid; gap:8px;">' +
+          '<div class="grid-2">' +
+            '<label>Estado<select class="resp-estado">' +
+              '<option value="nueva"' + (s.estado === "nueva" ? " selected" : "") + ">Nueva</option>" +
+              '<option value="en_revision"' + (s.estado === "en_revision" ? " selected" : "") + ">En revisión</option>" +
+              '<option value="resuelta"' + (s.estado === "resuelta" ? " selected" : "") + ">Resuelta</option>" +
+            "</select></label>" +
+            '<div style="align-self:end"><button class="btn primary" type="submit">Guardar</button></div>' +
+          "</div>" +
+          '<label>Respuesta<textarea class="resp-texto" rows="3">' + SBH.esc(s.respuesta || "") + "</textarea></label>" +
+        "</form>" +
+      "</div>"
+    );
+  }
+
+  function bindResponderSug() {
+    document.querySelectorAll("#sugerencias-list .responder").forEach(function (f) {
+      f.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        var card = f.closest(".reclamo");
+        var id = card.dataset.id;
+        var estado = f.querySelector(".resp-estado").value;
+        var texto = f.querySelector(".resp-texto").value.trim();
+        var r = await SB.client.rpc("responder_sugerencia", {
+          p_id: id, p_estado: estado, p_respuesta: texto || null
+        });
+        if (r.error) { SBH.mostrar("msg", r.error.message, "error"); return; }
+        SBH.mostrar("msg", "Sugerencia actualizada.", "ok");
+        cargarSugerencias();
+      });
+    });
+  }
+
   /* ---------- Estadísticas ---------- */
 
   async function cargarStats() {
@@ -309,6 +425,25 @@
     var meses = (e.por_mes || []).map(function (m) { return SBStats.fmtMes(m.mes); });
     var cant = (e.por_mes || []).map(function (m) { return m.cantidad; });
     SBStats.drawBars(document.getElementById("chart-mes"), meses, cant);
+
+    /* Sugerencias: contadores + gráficos (después de los de reclamos) */
+    var gridSug = document.getElementById("stats-grid-sug");
+    gridSug.innerHTML =
+      statCard(e.sug_total || 0, "Sugerencias totales") +
+      statCard(e.sug_por_estado && e.sug_por_estado.nueva || 0, "Nuevas") +
+      statCard(e.sug_por_estado && e.sug_por_estado.en_revision || 0, "En revisión") +
+      statCard(e.sug_por_estado && e.sug_por_estado.resuelta || 0, "Resueltas");
+
+    SBStats.drawBars(
+      document.getElementById("chart-sug-estado"),
+      Object.keys(e.sug_por_estado || {}).map(function (k) {
+        return { nueva: "Nueva", en_revision: "En revisión", resuelta: "Resuelta" }[k] || k;
+      }),
+      Object.values(e.sug_por_estado || {})
+    );
+    var sugMes = (e.sug_por_mes || []).map(function (m) { return SBStats.fmtMes(m.mes); });
+    var sugCant = (e.sug_por_mes || []).map(function (m) { return m.cantidad; });
+    SBStats.drawBars(document.getElementById("chart-sug-mes"), sugMes, sugCant);
   }
 
   function statCard(num, lbl) {
