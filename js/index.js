@@ -32,7 +32,7 @@
     SB.client.auth.signInWithPassword({ email: email, password: pass })
       .then(function (res) {
         cargando(btn, false, "Entrar");
-        if (res.error) { SBH.mostrar("msg", res.error.message, "error"); return; }
+        if (res.error) { SBH.mostrar("msg", SBH.fmtErr(res.error.message), "error"); return; }
         window.location.href = "app.html";
       });
   }
@@ -56,7 +56,7 @@
           if (/already registered/i.test(res.error.message)) {
             SBH.mostrar("msg", "Ese correo ya está registrado. Prueba iniciando sesión.", "error");
           } else {
-            SBH.mostrar("msg", res.error.message, "error");
+            SBH.mostrar("msg", SBH.fmtErr(res.error.message), "error");
           }
           return null;
         }
@@ -66,7 +66,7 @@
         return SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa })
           .then(function (pr) {
             if (pr.error) {
-              SBH.mostrar("msg", "Cuenta creada pero faltó asociar tu casa: " + pr.error.message, "error");
+              SBH.mostrar("msg", "Cuenta creada pero faltó asociar tu casa: " + SBH.fmtErr(pr.error.message), "error");
               return null;
             }
             return res;

@@ -27,7 +27,9 @@
         raf: 0,
         rects: [],
         activeIdx: -1,
-        bound: false
+        bound: false,
+        h: parseInt(canvas.getAttribute("height"), 10) || 200,
+        tries: 0
       };
       registry.push(rec);
     }
@@ -194,7 +196,7 @@
     var W = canvas.clientWidth;
     if (!W && canvas.parentNode) W = canvas.parentNode.clientWidth;
     if (!W) W = 300;
-    var H = parseInt(canvas.getAttribute("height"), 10) || 200;
+    var H = rec.h || 200;
 
     canvas.width = Math.max(1, Math.round(W * dpr));
     canvas.height = Math.max(1, Math.round(H * dpr));
@@ -380,14 +382,22 @@
 
     /* Si el canvas está oculto (p.ej. la sección aún en display:none al
        entrar a Estadísticas en un móvil lento), espera a que sea visible
-       antes de dibujar. Dibujar con ancho 0 estira/emborrona la gráfica. */
+       antes de dibujar. Dibujar con ancho 0 estira/emborrona la gráfica.
+       Se corta después de ~60 intentos para no quedarse reintentando a 60fps. */
     var vis = canvas.clientWidth && canvas.clientWidth > 0;
     if (!vis) {
+      rec.tries = (rec.tries || 0) + 1;
+      if (rec.tries > 60) {
+        rec.tries = 0;
+        return;
+      }
       rec.labels = labels || [];
       rec.values = values || [];
       raf(function () { drawBars(canvas, labels, values); });
       return;
     }
+
+    rec.tries = 0;
 
     if (rec.raf) { caf(rec.raf); rec.raf = 0; }
     rec.labels = labels || [];

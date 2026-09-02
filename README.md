@@ -2,8 +2,8 @@
 
 Aplicación (GitHub Pages + Supabase gratis) para que los vecinos del condominio **Casas del Parque 7** hagan reclamos sobre el servicio de guardias.
 
-- **Vecinos**: crean su cuenta (máx. 2 por casa), envían reclamos, ven sus propios reclamos y las **estadísticas** de la comunidad.
-- **Comité y Administración**: ven el **detalle** de todos los reclamos, cambian su estado y responden.
+- **Vecinos**: crean su cuenta (máx. 2 por casa), envían reclamos y **sugerencias**, ven los suyos de cada uno y las **estadísticas** de la comunidad.
+- **Comité y Administración**: ven el **detalle** de todos los reclamos y sugerencias, cambian su estado y responden.
 - **Administrador**: además asigna roles (vecino / comité / admin).
 
 ## Cómo funciona
@@ -86,7 +86,7 @@ Abre `http://localhost:8080`.
 ├── css/style.css
 ├── js/auth.js          Inicializa el cliente + helpers
 ├── js/index.js         Lógica de login/registro
-├── js/app.js           Panel de vecino / comité / admin
+├── js/app.js           Panel de vecino / comité / admin (reclamos + sugerencias)
 ├── js/stats.js         Dibujo de gráficos (Canvas, sin dependencias)
 ├── sql/schema.sql      Tablas, RLS y funciones (ejecutar en Supabase)
 ```

@@ -76,8 +76,8 @@
     if (!user) { window.location.href = "index.html"; return; }
 
     var gp = await SB.client.from("profiles").select("*").eq("id", user.id).maybeSingle();
-    if (gp.error && gp.error.message && !gp.data) {
-      SBH.mostrar("msg", gp.error.message, "error");
+    if (gp.error && !gp.data) {
+      SBH.mostrar("msg", SBH.fmtErr(gp.error.message), "error");
       return;
     }
 
@@ -118,7 +118,7 @@
       var nombre = document.getElementById("prof-name").value.trim();
       var casa = parseInt(document.getElementById("prof-casa").value, 10);
       var pr = await SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa });
-      if (pr.error) { SBH.mostrar("msg", pr.error.message, "error"); return; }
+      if (pr.error) { SBH.mostrar("msg", SBH.fmtErr(pr.error.message), "error"); return; }
       boot();
     });
 
@@ -161,7 +161,7 @@
         descripcion: document.getElementById("recl-descripcion").value.trim()
       };
       var ins = await SB.client.from("reclamos").insert([payload]);
-      if (ins.error) { SBH.mostrar("msg", ins.error.message, "error"); return; }
+      if (ins.error) { SBH.mostrar("msg", SBH.fmtErr(ins.error.message), "error"); return; }
       SBH.mostrar("msg", "Reclamo enviado. El comité lo revisará.", "ok");
       e.target.reset();
     });
@@ -180,7 +180,7 @@
         descripcion: document.getElementById("sug-descripcion").value.trim()
       };
       var ins = await SB.client.from("sugerencias").insert([payload]);
-      if (ins.error) { SBH.mostrar("msg", ins.error.message, "error"); return; }
+      if (ins.error) { SBH.mostrar("msg", SBH.fmtErr(ins.error.message), "error"); return; }
       SBH.mostrar("msg", "Sugerencia enviada. El comité la revisará.", "ok");
       e.target.reset();
     });
@@ -194,7 +194,7 @@
       .select("*")
       .eq("creado_por", user.id)
       .order("created_at", { ascending: false });
-    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
+    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
     if (!q.data.length) { wrap.innerHTML = '<p class="hint">Aún no has enviado sugerencias.</p>'; return; }
     wrap.innerHTML = q.data.map(tarjetaSugerenciaMia).join("");
   }
@@ -224,7 +224,7 @@
       .select("*")
       .eq("creado_por", user.id)
       .order("created_at", { ascending: false });
-    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
+    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
     if (!q.data.length) { wrap.innerHTML = '<p class="hint">Aún no has enviado reclamos.</p>'; return; }
     wrap.innerHTML = q.data.map(tarjetaReclamo).join("");
   }
@@ -262,7 +262,7 @@
     }
     if (sel) { sel.value = filtroSev; if (!sel.options[sel.selectedIndex]) sel.value = "todos"; }
     var q = await SB.client.rpc("reclamos_detalle");
-    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
+    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
     recCache = q.data || [];
     rendReclamos();
   }
@@ -325,7 +325,7 @@
         var r = await SB.client.rpc("responder_reclamo", {
           p_id: id, p_estado: estado, p_respuesta: texto || null
         });
-        if (r.error) { SBH.mostrar("msg", r.error.message, "error"); return; }
+        if (r.error) { SBH.mostrar("msg", SBH.fmtErr(r.error.message), "error"); return; }
         SBH.mostrar("msg", "Reclamo actualizado.", "ok");
         cargarReclamos();
       });
@@ -338,7 +338,7 @@
     var wrap = document.getElementById("sugerencias-list");
     wrap.innerHTML = '<p class="hint">Cargando…</p>';
     var q = await SB.client.rpc("sugerencias_detalle");
-    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
+    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
     if (!q.data || !q.data.length) { wrap.innerHTML = '<p class="hint">No hay sugerencias aún.</p>'; return; }
     wrap.innerHTML = q.data.map(tarjetaSugerencia).join("");
     bindResponderSug();
@@ -386,7 +386,7 @@
         var r = await SB.client.rpc("responder_sugerencia", {
           p_id: id, p_estado: estado, p_respuesta: texto || null
         });
-        if (r.error) { SBH.mostrar("msg", r.error.message, "error"); return; }
+        if (r.error) { SBH.mostrar("msg", SBH.fmtErr(r.error.message), "error"); return; }
         SBH.mostrar("msg", "Sugerencia actualizada.", "ok");
         cargarSugerencias();
       });
@@ -397,7 +397,7 @@
 
   async function cargarStats() {
     var s = await SB.client.rpc("estadisticas");
-    if (s.error) { SBH.mostrar("msg", s.error.message, "error"); return; }
+    if (s.error) { SBH.mostrar("msg", SBH.fmtErr(s.error.message), "error"); return; }
     var e = s.data || {};
 
     var grid = document.getElementById("stats-grid");
@@ -456,7 +456,7 @@
     var wrap = document.getElementById("usuarios-list");
     if (rol !== "admin") { wrap.innerHTML = '<p class="hint">Solo admin.</p>'; return; }
     var q = await SB.client.from("profiles").select("id,nombre,numero_casa,rol,created_at").order("numero_casa");
-    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
+    if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
     if (!q.data.length) { wrap.innerHTML = '<p class="hint">No hay usuarios registrados.</p>'; return; }
     wrap.innerHTML = q.data.map(function (p) {
       return (
@@ -478,7 +478,7 @@
         var id = row.dataset.id;
         var nuevoRol = row.querySelector(".urol").value;
         var r = await SB.client.rpc("asignar_rol", { p_usuario: id, p_rol: nuevoRol });
-        if (r.error) { SBH.mostrar("msg", r.error.message, "error"); return; }
+        if (r.error) { SBH.mostrar("msg", SBH.fmtErr(r.error.message), "error"); return; }
         SBH.mostrar("msg", "Rol actualizado.", "ok");
         cargarUsuarios();
       });

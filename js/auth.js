@@ -50,6 +50,23 @@
     });
   }
 
+  function fmtErr(m) {
+    var s = String((m == null) ? "" : m);
+    if (/could not find the function|schema cache/i.test(s))
+      return "La base de datos no está actualizada. Ejecuta el sql/schema.sql completo en el SQL Editor de Supabase.";
+    if (/failed to fetch|networkerror|load failed|fetch failed|timeout/i.test(s))
+      return "No hay conexión con Supabase. Revisa tu internet e inténtalo de nuevo.";
+    if (/already registered|already been registered|email already/i.test(s))
+      return "Ese correo ya está registrado. Prueba iniciando sesión.";
+    if (/invalid login credentials|invalid email or password/i.test(s))
+      return "Correo o contraseña incorrectos.";
+    if (/too many (requests|attempts)|rate limit|429/i.test(s))
+      return "Demasiadas solicitudes en poco tiempo. Espera un momento y vuelve a intentarlo.";
+    if (/jwt expired|invalid jwt|token has expired|not authorized|signed out/i.test(s))
+      return "Tu sesión expiró. Vuelve a iniciar sesión.";
+    return s;
+  }
+
   function llenarCasas(select) {
     if (!select || select.options.length) return;
     var frag = document.createDocumentFragment();
@@ -63,5 +80,5 @@
   }
 
   window.SB = SB;
-  window.SBH = { mostrar: mostrar, esc: esc, fmtFecha: fmtFecha, llenarCasas: llenarCasas };
+  window.SBH = { mostrar: mostrar, esc: esc, fmtFecha: fmtFecha, llenarCasas: llenarCasas, fmtErr: fmtErr };
 })();
