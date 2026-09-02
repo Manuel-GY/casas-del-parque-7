@@ -16,12 +16,13 @@ on conflict (numero) do nothing;
 
 -- 2) PERFILES (1 usuario = 1 vecino; 2 por casa; comité/admin sin casa) -----
 create table if not exists public.profiles (
-  id          uuid primary key references auth.users(id) on delete cascade,
-  nombre      text not null check (length(nombre) between 1 and 120),
-  numero_casa integer references public.casas(numero),
-  rol         text not null default 'vecino'
-              check (rol in ('vecino','comite','admin')),
-  created_at  timestamptz not null default now()
+  id                uuid primary key references auth.users(id) on delete cascade,
+  nombre            text not null check (length(nombre) between 1 and 120),
+  numero_casa       integer references public.casas(numero),
+  rol               text not null default 'vecino'
+                    check (rol in ('vecino','comite','admin')),
+  debe_cambiar_pass boolean not null default false,
+  created_at        timestamptz not null default now()
 );
 
 -- 3) RECLAMOS -------------------------------------------------
@@ -152,6 +153,16 @@ begin
   if not found then
     raise exception 'Usuario no encontrado.';
   end if;
+end;
+$$;
+
+create or replace function public.marcar_clave_cambiada()
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+begin
+  update public.profiles set debe_cambiar_pass = false where id = auth.uid();
 end;
 $$;
 

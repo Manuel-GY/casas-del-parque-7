@@ -24,14 +24,15 @@ Para dejarlas con su rol y **sin casa** (ejecutar una vez en SQL Editor):
 
 ```sql
 alter table public.profiles alter column numero_casa drop not null;
+alter table public.profiles add column if not exists debe_cambiar_pass boolean not null default false;
 
-insert into public.profiles (id, nombre, numero_casa, rol)
-select id, 'Comité Ejecutivo CDP7', null, 'comite'
+insert into public.profiles (id, nombre, numero_casa, rol, debe_cambiar_pass)
+select id, 'Comité Ejecutivo CDP7', null, 'comite', true
 from auth.users where email = 'comite@casasdelparque7.cl'
-on conflict (id) do update set rol = 'comite', numero_casa = null, nombre = 'Comité Ejecutivo CDP7';
+on conflict (id) do update set rol = 'comite', numero_casa = null, nombre = 'Comité Ejecutivo CDP7', debe_cambiar_pass = true;
 
 update public.profiles p
-set rol = 'admin', numero_casa = null, nombre = 'Administración CDP7'
+set rol = 'admin', numero_casa = null, nombre = 'Administración CDP7', debe_cambiar_pass = true
 from auth.users u
 where u.email = 'administracion@casasdelparque7.cl' and u.id = p.id;
 ```

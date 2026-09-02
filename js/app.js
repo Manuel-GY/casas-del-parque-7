@@ -102,10 +102,27 @@
     document.getElementById("welcome-tx").innerHTML =
       "¡Hola, " + SBH.esc(primer) + '! <span style="color:var(--sun-dark)">☀</span>';
 
+    if (requiereCambioPass(user, profile)) {
+      document.getElementById("app-main").classList.add("hidden");
+      document.getElementById("card-cambiar-pass").classList.remove("hidden");
+      SBH.mostrar("msg", "Por seguridad y transparencia, debes cambiar tu contraseña por defecto antes de continuar.", "error");
+      return;
+    }
+
+    document.getElementById("card-cambiar-pass").classList.add("hidden");
     document.getElementById("app-main").classList.remove("hidden");
     llenarReclamoForm();
     llenarSugerenciaForm();
     await definirNav();
+  }
+
+  function requiereCambioPass(u, p) {
+    if (!u) return false;
+    if (p && p.debe_cambiar_pass === true) return true;
+    var em = (u.email || "").toLowerCase();
+    var esGenerica = (em === "administracion@casasdelparque7.cl" || em === "comite@casasdelparque7.cl");
+    var cambiada = u.user_metadata && u.user_metadata.clave_cambiada;
+    return esGenerica && !cambiada;
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -115,6 +132,61 @@
       await SB.client.auth.signOut();
       window.location.href = "index.html";
     });
+
+    var btnCambiarPass = document.getElementById("btn-cambiar-pass");
+    if (btnCambiarPass) {
+      btnCambiarPass.addEventListener("click", function () {
+        document.getElementById("app-main").classList.add("hidden");
+        document.getElementById("card-cambiar-pass").classList.remove("hidden");
+        SBH.mostrar("msg", "Ingresa tu nueva contraseña a continuación.", "ok");
+      });
+    }
+
+    var formCambiarPass = document.getElementById("form-cambiar-pass");
+    if (formCambiarPass) {
+      formCambiarPass.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        SBH.mostrar("msg", "", "ok");
+        var p1 = document.getElementById("pass-nueva").value;
+        var p2 = document.getElementById("pass-confirmar").value;
+        if (p1.length < 6) {
+          SBH.mostrar("msg", "La contraseña debe tener al menos 6 caracteres.", "error");
+          return;
+        }
+        if (p1 !== p2) {
+          SBH.mostrar("msg", "Las contraseñas no coinciden. Revisa e inténtalo de nuevo.", "error");
+          return;
+        }
+
+        var btn = document.getElementById("btn-save-pass");
+        btn.disabled = true;
+        btn.textContent = "Actualizando…";
+
+        var up = await SB.client.auth.updateUser({
+          password: p1,
+          data: { clave_cambiada: true }
+        });
+        btn.disabled = false;
+        btn.textContent = "Actualizar contraseña";
+
+        if (up.error) {
+          SBH.mostrar("msg", SBH.fmtErr(up.error.message), "error");
+          return;
+        }
+
+        await SB.client.rpc("marcar_clave_cambiada");
+        if (profile) profile.debe_cambiar_pass = false;
+        if (user) {
+          user.user_metadata = user.user_metadata || {};
+          user.user_metadata.clave_cambiada = true;
+        }
+
+        SBH.mostrar("msg", "¡Contraseña actualizada exitosamente!", "ok");
+        document.getElementById("card-cambiar-pass").classList.add("hidden");
+        document.getElementById("app-main").classList.remove("hidden");
+        boot();
+      });
+    }
 
     document.getElementById("profiling-form").addEventListener("submit", async function (e) {
       e.preventDefault();

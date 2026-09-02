@@ -26,12 +26,29 @@
       <span class="user-name" id="user-nombre"></span>
       <span class="badge" id="user-casa"></span>
       <span class="badge role-vecino" id="user-rol"></span>
-      <button class="btn ghost sm" id="btn-logout">Salir</button>
+      <button class="btn ghost sm" id="btn-cambiar-pass" type="button">Cambiar clave</button>
+      <button class="btn ghost sm" id="btn-logout" type="button">Salir</button>
     </div>
   </header>
 
   <div class="container">
     <div id="msg" class="msg"></div>
+
+    <div id="card-cambiar-pass" class="card hidden">
+      <h2>🔒 Cambio de contraseña obligatorio</h2>
+      <p class="sub">Por motivos de seguridad y transparencia, debes actualizar la contraseña por defecto antes de continuar.</p>
+      <form id="form-cambiar-pass" class="grid-2">
+        <label>Nueva contraseña (mínimo 6 caracteres)
+          <input type="password" id="pass-nueva" required minlength="6" autocomplete="new-password">
+        </label>
+        <label>Confirmar nueva contraseña
+          <input type="password" id="pass-confirmar" required minlength="6" autocomplete="new-password">
+        </label>
+        <div style="grid-column: 1 / -1;">
+          <button class="btn primary" type="submit" id="btn-save-pass">Actualizar contraseña</button>
+        </div>
+      </form>
+    </div>
 
     <div id="profiling" class="card hidden">
       <h2>Completa tu registro</h2>
