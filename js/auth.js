@@ -95,6 +95,33 @@
     select.appendChild(frag);
   }
 
+  function bindPrivacyModal() {
+    var link = document.getElementById("link-privacy");
+    var modal = document.getElementById("modal-privacidad");
+    var closeBtn = document.getElementById("btn-close-privacy");
+    if (!link || !modal) return;
+
+    function abrir(e) {
+      if (e) e.preventDefault();
+      modal.classList.remove("hidden");
+      modal.setAttribute("aria-hidden", "false");
+    }
+    function cerrar() {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
+    link.addEventListener("click", abrir);
+    if (closeBtn) closeBtn.addEventListener("click", cerrar);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) cerrar();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    bindPrivacyModal();
+  });
+
   window.SB = SB;
-  window.SBH = { mostrar: mostrar, esc: esc, fmtFecha: fmtFecha, llenarCasas: llenarCasas, fmtErr: fmtErr };
+  window.SBH = { mostrar: mostrar, esc: esc, fmtFecha: fmtFecha, llenarCasas: llenarCasas, fmtErr: fmtErr, bindPrivacyModal: bindPrivacyModal };
 })();
