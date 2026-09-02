@@ -26,26 +26,27 @@
     nav.innerHTML = "";
 
     var tabs = [
-      { id: "sec-nuevo", txt: "Nuevo reclamo" },
-      { id: "sec-mios", txt: "Mis reclamos" },
-      { id: "sec-sugerir", txt: "Ingresar sugerencia" },
-      { id: "sec-mias", txt: "Mis sugerencias" }
+      { id: "sec-nuevo", txt: "Nuevo", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>' },
+      { id: "sec-mios", txt: "Mis Reclamos", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' },
+      { id: "sec-sugerir", txt: "Sugerir", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>' },
+      { id: "sec-mias", txt: "Mis Sugerencias", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>' }
     ];
     if (rol === "comite" || rol === "admin") {
       tabs = [
-        { id: "sec-reclamos", txt: "Reclamos" },
-        { id: "sec-sugerencias", txt: "Sugerencias" },
-        { id: "sec-stats", txt: "Estadísticas" }
+        { id: "sec-reclamos", txt: "Reclamos", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' },
+        { id: "sec-sugerencias", txt: "Sugerencias", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>' },
+        { id: "sec-stats", txt: "Estadísticas", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' }
       ];
-      if (rol === "admin") tabs.push({ id: "sec-usuarios", txt: "Usuarios" });
+      if (rol === "admin") tabs.push({ id: "sec-usuarios", txt: "Usuarios", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' });
     } else {
-      tabs.push({ id: "sec-stats", txt: "Estadísticas" });
+      tabs.push({ id: "sec-stats", txt: "Estadísticas", icon: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' });
     }
 
     tabs.forEach(function (t, i) {
       var b = document.createElement("button");
       b.className = "tab" + (i === 0 ? " active" : "");
-      b.textContent = t.txt;
+      b.type = "button";
+      b.innerHTML = (t.icon || "") + '<span>' + SBH.esc(t.txt) + '</span>';
       b.dataset.target = t.id;
       b.addEventListener("click", function () { mostrarSeccion(t.id); });
       nav.appendChild(b);

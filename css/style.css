@@ -218,6 +218,20 @@ nav.tabs .tab {
   box-shadow: var(--shadow-soft);
   border-radius: 999px;
 }
+nav.tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 11px 20px;
+  background: var(--soft);
+  color: var(--muted);
+  border: 2px solid rgba(255, 255, 255, .8);
+  box-shadow: var(--shadow-soft);
+  border-radius: 999px;
+}
+nav.tabs .tab svg { display: inline-block; vertical-align: middle; }
 nav.tabs .tab.active {
   background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
   color: #fff;
@@ -225,7 +239,59 @@ nav.tabs .tab.active {
 }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .grid-2 { grid-template-columns: 1fr; }
+
+  /* Prevención de auto-zoom en iOS Safari */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Bottom Navigation Bar táctil fija en celular */
+  nav.tabs {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    margin: 0;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, .96);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(20, 83, 45, .15);
+    box-shadow: 0 -4px 20px rgba(20, 83, 45, .12);
+    display: flex;
+    justify-content: space-around;
+    gap: 4px;
+    border-radius: 0;
+  }
+
+  nav.tabs .tab {
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 2px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    color: var(--muted);
+    min-height: 48px;
+  }
+
+  nav.tabs .tab.active {
+    background: #f0fdf4;
+    color: var(--forest);
+  }
+
+  nav.tabs .tab svg { width: 22px; height: 22px; }
+
+  .container {
+    padding-bottom: 95px !important;
+  }
+}
 
 .reclamo {
   border: 2px solid var(--line);
@@ -362,7 +428,7 @@ footer.site {
   .auth-card { padding: 24px 20px; }
   .topbar .user-name { display: none; }
   .welcome h2 { font-size: 24px; }
-  .container { padding: 18px 14px 50px; }
+  .container { padding: 18px 14px 95px; }
   .card { padding: 18px 16px; }
   .topbar { padding: 10px 14px; }
   .topbar .app-name { font-size: 15px; }
@@ -377,5 +443,4 @@ footer.site {
 
 @media (max-width: 400px) {
   .topbar .app-sub { display: none; }
-  nav.tabs .tab { padding: 10px 14px; font-size: 13px; }
 }
