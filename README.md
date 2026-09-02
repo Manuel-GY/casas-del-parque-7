@@ -1,26 +1,52 @@
-# Casas del Parque 7 — Reclamos a Guardias
+# Casas del Parque 7 — Plataforma Oficial de Gestión Comunitaria
 
-Aplicación (GitHub Pages + Supabase gratis) para que los vecinos del condominio **Casas del Parque 7** hagan reclamos sobre el servicio de guardias.
+Plataforma web progresiva (GitHub Pages + Supabase) desarrollada de forma **Serverless & Zero-Build** para la gestión transparente de reclamos y sugerencias sobre el servicio de guardias y seguridad del condominio **Casas del Parque 7** (142 casas).
 
-- **Vecinos**: crean su cuenta (máx. 2 por casa), envían reclamos y **sugerencias**, ven los suyos de cada uno y las **estadísticas** de la comunidad.
-- **Comité y Administración**: ven el **detalle** de todos los reclamos y sugerencias, cambian su estado y responden.
-- **Administrador**: además asigna roles (vecino / comité / admin).
+---
 
-## Cómo funciona
+## 🌟 Funcionalidades Principales
 
-- **GitHub Pages** (o Netlify Drop) solo sirve archivos estáticos (no tiene servidor).
-- Toda la lógica viva (login y datos) corre en **Supabase** (plan gratuito): Auth + Postgres con **Row Level Security**, lo que hace que los vecinos *no puedan* leer el detalle de reclamos ajenos aunque conozcan la clave pública del proyecto.
+### 🏡 Para Vecinos
+- **Registro por Casa**: Máximo 2 vecinos registrados por vivienda (validado estrictamente en base de datos).
+- **Envío de Reclamos**: Selección de categoría (accesos, comportamiento, turnos, instalaciones, otros) y severidad (baja, media, alta).
+- **Envío de Sugerencias**: Propuestas para la mejora comunitaria.
+- **Historial Privado**: Visualización exclusiva de sus propias solicitudes y de la respuesta del Comité / Administración.
+- **Estadísticas Comunitarias**: Métricas anónimas agregadas por mes, severidad, categoría y estado.
 
-## Cuentas genéricas de prueba
+### 🛡️ Para el Comité y la Administración
+- **Panel de Control Completo**: Gestión detallada de todos los reclamos y sugerencias con estado (*Nuevo*, *En revisión*, *Resuelto* / *Resuelta*).
+- **Buscador en Tiempo Real**: Filtrado dinámico por palabra clave, título, detalle o número de casa.
+- **Exportación a CSV / Excel**: Descarga de reportes en formato `.csv` compatible con Microsoft Excel (codificación UTF-8 con BOM).
+- **Gestión de Roles (Solo Admin)**: Asignación de permisos de Comité o Administración a perfiles registrados.
 
-| Rol | Correo | Contraseña | Casa |
+### 📱 Experiencia Móvil & PWA
+- **Barra de Navegación Inferior (Bottom Tab Bar)**: Menú táctil fijado en la parte inferior con iconos SVG para un manejo cómodo con una sola mano en smartphones (iOS / Android).
+- **Prevención de Auto-Zoom**: Ajustes tipográficos a `16px` en controles de formulario para evitar el zoom involuntario en iPhone / Safari.
+- **Transparencia y Privacidad**: Modal interactivo de Política de Privacidad accesible desde el pie de página e insignias de confidencialidad en los formularios.
+
+---
+
+## 🔒 Arquitectura de Seguridad (Supabase RLS)
+
+- **Servidor Cero (Zero Server)**: El frontend se sirve como archivos estáticos a través de **GitHub Pages**.
+- **Row Level Security (RLS) en PostgreSQL**:
+  - Toda la seguridad está garantizada en la base de datos Supabase.
+  - Los vecinos **solo pueden consultar sus propios reclamos** (`creado_por = auth.uid()`).
+  - La clave pública (`anon key`) no compromete la información, pues PostgreSQL rechaza cualquier consulta no autorizada.
+- **Cambio Obligatorio de Contraseña**: Las cuentas genéricas de demostración o iniciales son forzadas a cambiar su clave por defecto en el primer inicio de sesión.
+
+---
+
+## 🔑 Cuentas Iniciales de Prueba
+
+| Rol | Correo | Contraseña Inicial | Casa |
 |---|---|---|---|
 | Administración | `administracion@casasdelparque7.cl` | `AdminCP7#2026` | Sin casa |
 | Comité | `comite@casasdelparque7.cl` | `ComiteCP7#2026` | Sin casa |
 
-> ⚠️ Son cuentas de demostración con claves "conocidas". Cámbialas apenas la comunidad esté en uso real, o reemplaza estas cuentas por las reales.
+> ⚠️ Al ingresar por primera vez con estas cuentas, el sistema exigirá crear una contraseña personalizada segura antes de mostrar el panel.
 
-Para dejarlas con su rol y **sin casa** (ejecutar una vez en SQL Editor):
+### Script SQL para Inicialización de Cuentas (Ejecutar en Supabase SQL Editor):
 
 ```sql
 alter table public.profiles alter column numero_casa drop not null;
@@ -37,62 +63,55 @@ from auth.users u
 where u.email = 'administracion@casasdelparque7.cl' and u.id = p.id;
 ```
 
-## Pasos de instalación
+---
 
-### 1) Supabase (una vez)
+## 🚀 Pasos de Instalación y Despliegue
 
-1. Crea un proyecto gratis en <https://supabase.com>.
+### 1. Configurar Supabase Backend
+1. Crea un proyecto gratuito en [https://supabase.com](https://supabase.com).
 2. Ve a **SQL Editor → New query**, pega el contenido de [`sql/schema.sql`](sql/schema.sql) y ejecútalo.
-3. En **Authentication → Providers → Email**, decide si quieres pedir confirmación de correo *(recomendado desactivarla para la prueba)*.
-4. Copia la **URL del proyecto** y la **anon key** de **Project Settings → API** y pégalas en [`config.js`](config.js) (sustituyendo `PEGA_AQUI_...`).
+3. Copia la **URL del proyecto** y la **anon key** en **Project Settings → API** y agrégalas en [`config.js`](config.js).
 
-> La `anon key` es pública por diseño: la seguridad real la dan las políticas RLS de la base, no esa clave.
-
-### 2) Primer administrador (una vez)
-
-Tras crear la primera cuenta (será `vecino`), promuévela a `admin` en **SQL Editor**:
+### 2. Configurar el Primer Administrador
+Tras crear tu primera cuenta como vecino, promuévela a `admin` ejecutando en el SQL Editor:
 
 ```sql
 update public.profiles set rol = 'admin'
-where id = (select id from auth.users where email = 'TU_CORREO@EJEMPLO.CL');
+where id = (select id from auth.users where email = 'tu_correo@ejemplo.cl');
 ```
 
-Desde ese perfil podrás convertir a otros en comité o admin en la pestaña **Usuarios**.
+### 3. Despliegue en GitHub Pages
+1. Sube los cambios al repositorio en la rama `main`.
+2. Ve a **Settings → Pages → Source: Deploy from a branch → main / (root)**.
 
-### 3) GitHub Pages
+---
 
-1. Crea el repositorio (público) y súbelo.
-2. Activa **Settings → Pages → Source: Deploy from a branch → main /**
-   (GitHub vuelve a publicar automáticamente en cada push a `main`).
+## 💻 Desarrollo Local
 
-## Desarrollo local
+Para probar localmente, ejecuta un servidor estático (requerido para evitar bloqueos CORS):
 
-Ejecuta un servidor estático en la raíz (no basta abrir `index.html` por CORS):
-
-```powershell
+```bash
+# Con Node.js
 npx serve .
-# o
+
+# O con Python
 python -m http.server 8080
 ```
 
-Abre `http://localhost:8080`.
+Abre en tu navegador: `http://localhost:8080`.
 
-## Estructura
+---
+
+## 📁 Estructura del Código
 
 ```
-├── index.html          Login / registro (pide número de casa)
-├── app.html            Panel (según rol)
-├── config.js           URL + anon key de Supabase
-├── css/style.css
-├── js/auth.js          Inicializa el cliente + helpers
-├── js/index.js         Lógica de login/registro
-├── js/app.js           Panel de vecino / comité / admin (reclamos + sugerencias)
-├── js/stats.js         Dibujo de gráficos (Canvas, sin dependencias)
-├── sql/schema.sql      Tablas, RLS y funciones (ejecutar en Supabase)
+├── index.html          Pantalla de Login, Registro, aviso de privacidad y modal
+├── app.html            Panel principal (Vecino / Comité / Admin), navegación y formularios
+├── config.js           Credenciales públicas (URL + anon key de Supabase)
+├── css/style.css       Sistema de diseño, glassmorphism, responsive y Bottom Navigation Bar
+├── js/auth.js          Inicialización del cliente Supabase, traducción de errores y modal
+├── js/index.js         Lógica de autenticación e inicio de sesión
+├── js/app.js           Panel dinámico, validaciones, buscador en tiempo real y exportación CSV
+├── js/stats.js         Motor de gráficos dinámicos en HTML5 Canvas (sin dependencias)
+└── sql/schema.sql      Esquema de base de datos, funciones SECURITY DEFINER y políticas RLS
 ```
-
-## Notas
-
-- Límite de **2 usuarios por casa** validado en Postgres (`registrar_perfil`), no solo en el navegador.
-- Los vecinos solo ven: estadísticas agregadas, sus propios reclamos y la respuesta del comité.
-- Categorías de reclamos: control de accesos, comportamiento del guardia, cumplimiento de turnos, estado de instalaciones y otros.
