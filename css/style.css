@@ -153,17 +153,6 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--l
 .msg.error { display: block; background: #fef2f2; color: #b91c1c; border: 2px solid #fecaca; }
 .msg.ok { display: block; background: #f0fdf4; color: #15803d; border: 2px solid #bbf7d0; }
 
-.demo-note {
-  border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 13px;
-  font-weight: 800;
-  margin-bottom: 16px;
-  background: #fffbeb;
-  color: #92400e;
-  border: 2px solid #fde68a;
-}
-
 /* ---------- App ---------- */
 .hidden { display: none !important; }
 

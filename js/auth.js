@@ -64,6 +64,16 @@
       return "Demasiadas solicitudes en poco tiempo. Espera un momento y vuelve a intentarlo.";
     if (/jwt expired|invalid jwt|token has expired|not authorized|signed out/i.test(s))
       return "Tu sesión expiró. Vuelve a iniciar sesión.";
+    if (/violates check constraint.*descripcion/i.test(s))
+      return "El detalle/descripción debe tener al menos 10 y máximo 2000 caracteres.";
+    if (/violates check constraint.*titulo/i.test(s))
+      return "El título debe tener al menos 3 y máximo 200 caracteres.";
+    if (/violates check constraint.*nombre/i.test(s))
+      return "El nombre debe tener entre 1 y 120 caracteres.";
+    if (/violates check constraint/i.test(s))
+      return "Los datos ingresados no cumplen con los límites de longitud requeridos (mínimo 10 caracteres en la descripción).";
+    if (/violates row-level security policy/i.test(s))
+      return "No tienes permisos para realizar esta acción.";
     return s;
   }
 

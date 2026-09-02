@@ -5,7 +5,10 @@
   var profile = null;
   var rol = null;
   var recCache = [];
+  var sugCache = [];
   var filtroSev = "todos";
+  var busquedaRec = "";
+  var busquedaSug = "";
 
   function chip(txt, css) {
     return '<span class="chip ' + css + '">' + SBH.esc(txt) + "</span>";
@@ -130,6 +133,32 @@
       });
     }
 
+    var fBuscarRec = document.getElementById("filtro-buscar-reclamo");
+    if (fBuscarRec) {
+      fBuscarRec.addEventListener("input", function () {
+        busquedaRec = fBuscarRec.value.trim().toLowerCase();
+        rendReclamos();
+      });
+    }
+
+    var fBuscarSug = document.getElementById("filtro-buscar-sugerencia");
+    if (fBuscarSug) {
+      fBuscarSug.addEventListener("input", function () {
+        busquedaSug = fBuscarSug.value.trim().toLowerCase();
+        rendSugerencias();
+      });
+    }
+
+    var btnExpRec = document.getElementById("btn-exportar-reclamos");
+    if (btnExpRec) {
+      btnExpRec.addEventListener("click", function () { exportarCSVReclamos(); });
+    }
+
+    var btnExpSug = document.getElementById("btn-exportar-sugerencias");
+    if (btnExpSug) {
+      btnExpSug.addEventListener("click", function () { exportarCSVSugerencias(); });
+    }
+
     boot();
   });
 
@@ -152,13 +181,23 @@
     document.getElementById("reclamo-form").addEventListener("submit", async function (e) {
       e.preventDefault();
       SBH.mostrar("msg", "", "ok");
+      var titulo = document.getElementById("recl-titulo").value.trim();
+      var descripcion = document.getElementById("recl-descripcion").value.trim();
+      if (titulo.length < 3 || titulo.length > 200) {
+        SBH.mostrar("msg", "El título debe tener entre 3 y 200 caracteres.", "error");
+        return;
+      }
+      if (descripcion.length < 10 || descripcion.length > 2000) {
+        SBH.mostrar("msg", "La descripción del reclamo debe tener al menos 10 y máximo 2000 caracteres.", "error");
+        return;
+      }
       var payload = {
         creado_por: user.id,
         numero_casa: profile.numero_casa,
         categoria: document.getElementById("recl-categoria").value,
         severidad: document.getElementById("recl-severidad").value,
-        titulo: document.getElementById("recl-titulo").value.trim(),
-        descripcion: document.getElementById("recl-descripcion").value.trim()
+        titulo: titulo,
+        descripcion: descripcion
       };
       var ins = await SB.client.from("reclamos").insert([payload]);
       if (ins.error) { SBH.mostrar("msg", SBH.fmtErr(ins.error.message), "error"); return; }
@@ -173,11 +212,21 @@
     document.getElementById("sugerencia-form").addEventListener("submit", async function (e) {
       e.preventDefault();
       SBH.mostrar("msg", "", "ok");
+      var titulo = document.getElementById("sug-titulo").value.trim();
+      var descripcion = document.getElementById("sug-descripcion").value.trim();
+      if (titulo.length < 3 || titulo.length > 200) {
+        SBH.mostrar("msg", "El título de la sugerencia debe tener entre 3 y 200 caracteres.", "error");
+        return;
+      }
+      if (descripcion.length < 10 || descripcion.length > 2000) {
+        SBH.mostrar("msg", "El detalle de la sugerencia debe tener al menos 10 y máximo 2000 caracteres.", "error");
+        return;
+      }
       var payload = {
         creado_por: user.id,
         numero_casa: profile.numero_casa,
-        titulo: document.getElementById("sug-titulo").value.trim(),
-        descripcion: document.getElementById("sug-descripcion").value.trim()
+        titulo: titulo,
+        descripcion: descripcion
       };
       var ins = await SB.client.from("sugerencias").insert([payload]);
       if (ins.error) { SBH.mostrar("msg", SBH.fmtErr(ins.error.message), "error"); return; }
@@ -269,12 +318,17 @@
 
   function rendReclamos() {
     var wrap = document.getElementById("reclamos-list");
-    var lista = filtroSev === "todos"
-      ? recCache
-      : recCache.filter(function (r) { return r.severidad === filtroSev; });
+    var lista = recCache.filter(function (r) {
+      if (filtroSev !== "todos" && r.severidad !== filtroSev) return false;
+      if (busquedaRec) {
+        var txt = (r.titulo + " " + r.descripcion + " " + (r.nombre || "") + " casa " + r.numero_casa).toLowerCase();
+        if (txt.indexOf(busquedaRec) === -1) return false;
+      }
+      return true;
+    });
     if (!lista.length) {
       wrap.innerHTML = recCache.length
-        ? '<p class="hint">No hay reclamos con esa severidad.</p>'
+        ? '<p class="hint">No hay reclamos que coincidan con la búsqueda o filtro.</p>'
         : '<p class="hint">No hay reclamos aún.</p>';
       return;
     }
@@ -339,8 +393,26 @@
     wrap.innerHTML = '<p class="hint">Cargando…</p>';
     var q = await SB.client.rpc("sugerencias_detalle");
     if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
-    if (!q.data || !q.data.length) { wrap.innerHTML = '<p class="hint">No hay sugerencias aún.</p>'; return; }
-    wrap.innerHTML = q.data.map(tarjetaSugerencia).join("");
+    sugCache = q.data || [];
+    rendSugerencias();
+  }
+
+  function rendSugerencias() {
+    var wrap = document.getElementById("sugerencias-list");
+    var lista = sugCache.filter(function (s) {
+      if (busquedaSug) {
+        var txt = (s.titulo + " " + s.descripcion + " " + (s.nombre || "") + " casa " + s.numero_casa).toLowerCase();
+        if (txt.indexOf(busquedaSug) === -1) return false;
+      }
+      return true;
+    });
+    if (!lista.length) {
+      wrap.innerHTML = sugCache.length
+        ? '<p class="hint">No hay sugerencias que coincidan con la búsqueda.</p>'
+        : '<p class="hint">No hay sugerencias aún.</p>';
+      return;
+    }
+    wrap.innerHTML = lista.map(tarjetaSugerencia).join("");
     bindResponderSug();
   }
 
@@ -391,6 +463,63 @@
         cargarSugerencias();
       });
     });
+  }
+
+  /* ---------- Exportar CSV ---------- */
+
+  function exportarCSV(datos, nombreArchivo, columnas) {
+    if (!datos || !datos.length) {
+      SBH.mostrar("msg", "No hay datos para exportar.", "error");
+      return;
+    }
+    var headers = columnas.map(function (c) { return '"' + String(c.label).replace(/"/g, '""') + '"'; }).join(",");
+    var rows = datos.map(function (row) {
+      return columnas.map(function (c) {
+        var val = c.val(row);
+        val = (val == null) ? "" : String(val);
+        return '"' + val.replace(/"/g, '""') + '"';
+      }).join(",");
+    });
+    var csvContent = "\uFEFF" + [headers].concat(rows).join("\n");
+    var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportarCSVReclamos() {
+    var cols = [
+      { label: "Casa", val: function (r) { return r.numero_casa; } },
+      { label: "Vecino", val: function (r) { return r.nombre || ""; } },
+      { label: "Título", val: function (r) { return r.titulo; } },
+      { label: "Categoría", val: function (r) { return SB.CATEGORIAS[r.categoria] || r.categoria; } },
+      { label: "Severidad", val: function (r) { return SB.SEVERIDAD[r.severidad] || r.severidad; } },
+      { label: "Estado", val: function (r) { return SB.ESTADOS[r.estado] || r.estado; } },
+      { label: "Descripción", val: function (r) { return r.descripcion; } },
+      { label: "Respuesta Comité", val: function (r) { return r.respuesta || ""; } },
+      { label: "Atendido por", val: function (r) { return r.atendido_nombre || ""; } },
+      { label: "Fecha creación", val: function (r) { return SBH.fmtFecha(r.created_at); } }
+    ];
+    exportarCSV(recCache, "reclamos_casas_del_parque_7.csv", cols);
+  }
+
+  function exportarCSVSugerencias() {
+    var cols = [
+      { label: "Casa", val: function (s) { return s.numero_casa; } },
+      { label: "Vecino", val: function (s) { return s.nombre || ""; } },
+      { label: "Título", val: function (s) { return s.titulo; } },
+      { label: "Estado", val: function (s) { return { nueva: "Nueva", en_revision: "En revisión", resuelta: "Resuelta" }[s.estado] || s.estado; } },
+      { label: "Detalle", val: function (s) { return s.descripcion; } },
+      { label: "Respuesta Comité", val: function (s) { return s.respuesta || ""; } },
+      { label: "Atendido por", val: function (s) { return s.atendido_nombre || ""; } },
+      { label: "Fecha creación", val: function (s) { return SBH.fmtFecha(s.created_at); } }
+    ];
+    exportarCSV(sugCache, "sugerencias_casas_del_parque_7.csv", cols);
   }
 
   /* ---------- Estadísticas ---------- */

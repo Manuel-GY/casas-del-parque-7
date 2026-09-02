@@ -10,7 +10,6 @@ Aplicación (GitHub Pages + Supabase gratis) para que los vecinos del condominio
 
 - **GitHub Pages** (o Netlify Drop) solo sirve archivos estáticos (no tiene servidor).
 - Toda la lógica viva (login y datos) corre en **Supabase** (plan gratuito): Auth + Postgres con **Row Level Security**, lo que hace que los vecinos *no puedan* leer el detalle de reclamos ajenos aunque conozcan la clave pública del proyecto.
-- **Modo demostración**: mientras `config.js` tenga los valores de ejemplo `PEGA_AQUI_...`, la app usa datos locales en el navegador (registro, reclamos y estadísticas funcionan al instante, pero no se comparten entre vecinos). Al pegar las claves reales de Supabase, pasa sola al modo real.
 
 ## Cuentas genéricas de prueba
 
