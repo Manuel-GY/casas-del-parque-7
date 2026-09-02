@@ -64,6 +64,12 @@
       return "Demasiadas solicitudes en poco tiempo. Espera un momento y vuelve a intentarlo.";
     if (/jwt expired|invalid jwt|token has expired|not authorized|signed out/i.test(s))
       return "Tu sesión expiró. Vuelve a iniciar sesión.";
+    if (/new password should be different|different from the old|same as (the )?old password/i.test(s))
+      return "La nueva contraseña debe ser diferente a la contraseña anterior.";
+    if (/password should be at least/i.test(s))
+      return "La contraseña debe tener al menos 6 caracteres.";
+    if (/weak password/i.test(s))
+      return "La contraseña ingresada es demasiado débil.";
     if (/violates check constraint.*descripcion/i.test(s))
       return "El detalle/descripción debe tener al menos 10 y máximo 2000 caracteres.";
     if (/violates check constraint.*titulo/i.test(s))
