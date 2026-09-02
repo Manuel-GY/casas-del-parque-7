@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Casas del Parque 7 â€” Panel</title>
+  <title>Casas del Parque 7 — Panel</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -37,12 +37,12 @@
 
     <div id="profiling" class="card hidden">
       <h2>Completa tu registro</h2>
-      <p class="sub">Tu cuenta ya existe, pero falta asociarla a tu casa. MÃ¡ximo 2 usuarios por casa.</p>
+      <p class="sub">Tu cuenta ya existe, pero falta asociarla a tu casa. Máximo 2 usuarios por casa.</p>
       <form id="profiling-form" class="grid-2">
         <label>Nombre completo
           <input type="text" id="prof-name" required maxlength="120">
         </label>
-        <label>NÃºmero de casa
+        <label>Número de casa
           <select id="prof-casa" required></select>
         </label>
         <div>
@@ -53,7 +53,7 @@
 
     <div id="app-main" class="hidden">
       <div class="welcome">
-        <h2 id="welcome-tx">Â¡Hola, vecino! <span style="color:var(--sun-dark)">â˜€</span></h2>
+        <h2 id="welcome-tx">¡Hola, vecino! <span style="color:var(--sun-dark)">☀</span></h2>
       </div>
 
       <nav class="tabs" id="nav"></nav>
@@ -63,18 +63,18 @@
           <h2>Nuevo reclamo</h2>
           <form id="reclamo-form">
             <div class="grid-2">
-              <label>CategorÃ­a
+              <label>Categoría
                 <select id="recl-categoria" required></select>
               </label>
               <label>Severidad
                 <select id="recl-severidad" required></select>
               </label>
             </div>
-            <label>TÃ­tulo
+            <label>Título
               <input type="text" id="recl-titulo" required minlength="3" maxlength="200" placeholder="Ej.: No revisaron la credencial de visita">
             </label>
-            <label>DescripciÃ³n
-              <textarea id="recl-descripcion" required minlength="10" maxlength="2000" rows="5" placeholder="Cuenta quÃ© pasÃ³, fecha, hora y lugar."></textarea>
+            <label>Descripción
+              <textarea id="recl-descripcion" required minlength="10" maxlength="2000" rows="5"></textarea>
             </label>
             <button class="btn primary" type="submit">Enviar reclamo</button>
           </form>
@@ -88,7 +88,7 @@
         </div>
       </section>
 
-<section id="sec-reclamos" hidden>
+      <section id="sec-reclamos" hidden>
         <div class="card">
           <h2>Reclamos de la comunidad</h2>
           <div class="filtro">
@@ -101,7 +101,7 @@
 
       <section id="sec-stats" hidden>
         <div class="card">
-          <h2>EstadÃ­sticas de la comunidad</h2>
+          <h2>Estadísticas de la comunidad</h2>
           <div class="stats-grid" id="stats-grid"></div>
           <div class="grid-2">
             <div class="card chart-card">
@@ -109,7 +109,7 @@
               <canvas id="chart-estado" height="200"></canvas>
             </div>
             <div class="card chart-card">
-              <h3>Reclamos por categorÃ­a</h3>
+              <h3>Reclamos por categoría</h3>
               <canvas id="chart-categoria" height="200"></canvas>
             </div>
             <div class="card chart-card">
@@ -127,7 +127,7 @@
       <section id="sec-usuarios" hidden>
         <div class="card">
           <h2>Usuarios</h2>
-          <p class="sub">Asignar rol. Solo los administradores ven esta secciÃ³n.</p>
+          <p class="sub">Asignar rol. Solo los administradores ven esta sección.</p>
           <div id="usuarios-list"></div>
         </div>
       </section>

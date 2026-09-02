@@ -373,4 +373,20 @@ footer.site {
   .auth-card { padding: 24px 20px; }
   .topbar .user-name { display: none; }
   .welcome h2 { font-size: 24px; }
+  .container { padding: 18px 14px 50px; }
+  .card { padding: 18px 16px; }
+  .topbar { padding: 10px 14px; }
+  .topbar .app-name { font-size: 15px; }
+  .topbar .logo { width: 38px; height: 38px; }
+  .filtro { flex-direction: column; align-items: stretch; gap: 8px; }
+  .filtro select { width: 100%; }
+  .user-row { flex-direction: column; align-items: stretch; }
+  .user-row .dt { margin-bottom: 4px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat .num { font-size: 26px; }
+}
+
+@media (max-width: 400px) {
+  .topbar .app-sub { display: none; }
+  nav.tabs .tab { padding: 10px 14px; font-size: 13px; }
 }

@@ -26,6 +26,7 @@
         values: [],
         raf: 0,
         rects: [],
+        activeIdx: -1,
         bound: false
       };
       registry.push(rec);
@@ -149,6 +150,11 @@
         var b = rec.rects[i];
         if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) { hit = b; break; }
       }
+      var newActive = hit ? rec.rects.indexOf(hit) : -1;
+      if (newActive !== rec.activeIdx) {
+        rec.activeIdx = newActive;
+        renderChart(rec, 1);
+      }
       if (hit) {
         showTooltip(hit.value, hit.label, r.left + hit.x + hit.w / 2, r.top + hit.y);
       } else {
@@ -156,7 +162,13 @@
       }
     });
 
-    canvas.addEventListener("mouseleave", hideTooltip);
+    canvas.addEventListener("mouseleave", function () {
+      hideTooltip();
+      if (rec.activeIdx !== -1) {
+        rec.activeIdx = -1;
+        renderChart(rec, 1);
+      }
+    });
     canvas.addEventListener("touchstart", function (e) {
       var t = e.touches && e.touches[0];
       if (!t) return;
@@ -261,20 +273,32 @@
 
       if (rec.values[i] > 0) {
         var r = Math.min(5, barW / 2);
+        var active = (i === rec.activeIdx);
 
         var grad = ctx.createLinearGradient(0, y, 0, y + h);
-        grad.addColorStop(0, shade(color, 0.32));
-        grad.addColorStop(0.5, shade(color, 0.1));
-        grad.addColorStop(1, shade(color, -0.16));
+        grad.addColorStop(0, active ? shade(color, 0.45) : shade(color, 0.32));
+        grad.addColorStop(0.5, active ? shade(color, 0.2) : shade(color, 0.1));
+        grad.addColorStop(1, active ? shade(color, -0.05) : shade(color, -0.16));
         ctx.fillStyle = grad;
         ctx.beginPath();
         cornerRect(ctx, x, y, barW, h, r);
         ctx.fill();
 
-        /* inner frame for depth */
-        ctx.strokeStyle = "rgba(255,255,255,.30)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        if (active) {
+          ctx.save();
+          ctx.shadowColor = shade(color, -0.3);
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetY = 3;
+          ctx.strokeStyle = shade(color, 0.5);
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          /* inner frame for depth */
+          ctx.strokeStyle = "rgba(255,255,255,.30)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
 
         /* glossy highlight on the left */
         ctx.save();
@@ -297,13 +321,23 @@
       }
 
       /* value badge above the bar */
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "rgba(255,255,255,.9)";
+      var valTxt = String(rec.values[i]);
       ctx.font = "bold 11px Nunito, Segoe UI";
-      var vy = fullY - 5;
-      ctx.strokeText(String(rec.values[i]), x + barW / 2, vy);
+      var vwpx = ctx.measureText(valTxt).width;
+      var pillW = vwpx + 8;
+      var pillH = 15;
+      var pxx = x + barW / 2 - pillW / 2;
+      var pyy = fullY - 5 - pillH;
+      ctx.fillStyle = "rgba(255,255,255,.85)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = shade(color, -0.18);
+      roundRectPath(ctx, pxx, pyy, pillW, pillH, 7.5);
+      ctx.fill();
+      ctx.stroke();
       ctx.fillStyle = "#14532d";
-      ctx.fillText(String(rec.values[i]), x + barW / 2, vy);
+      ctx.textBaseline = "middle";
+      ctx.fillText(valTxt, x + barW / 2, pyy + pillH / 2 + 0.5);
+      ctx.textBaseline = "alphabetic";
 
       /* wrapped label below (2 lines, bold, 11px) */
       ctx.fillStyle = "#374151";

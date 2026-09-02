@@ -198,13 +198,14 @@
     var wrap = document.getElementById("reclamos-list");
     wrap.innerHTML = '<p class="hint">Cargando…</p>';
     var sel = document.getElementById("filtro-severidad");
-    if (sel && !sel.options.length) {
+    if (sel && !sel.dataset.ready) {
       sel.innerHTML = '<option value="todos">Todas</option>' +
         Object.keys(SB.SEVERIDAD).map(function (k) {
           return '<option value="' + k + '">' + SBH.esc(SB.SEVERIDAD[k]) + "</option>";
         }).join("");
-      sel.value = "todos";
+      sel.dataset.ready = "1";
     }
+    if (sel) { sel.value = filtroSev; if (!sel.options[sel.selectedIndex]) sel.value = "todos"; }
     var q = await SB.client.rpc("reclamos_detalle");
     if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(q.error.message) + "</p>"; return; }
     recCache = q.data || [];
