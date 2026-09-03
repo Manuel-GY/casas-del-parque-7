@@ -25,6 +25,9 @@ create table if not exists public.profiles (
   created_at        timestamptz not null default now()
 );
 
+-- Compatibilidad con versiones previas del esquema: agrega la columna si falta
+alter table public.profiles add column if not exists debe_cambiar_pass boolean not null default false;
+
 -- 3) RECLAMOS -------------------------------------------------
 create table if not exists public.reclamos (
   id          uuid primary key default gen_random_uuid(),
