@@ -488,9 +488,9 @@ begin
     jsonb_build_object('nombre', v_nombre)
   );
 
-  -- Perfil con rol vecino y casa DEMO (Casa 1), como vecino autorizado
-  insert into public.profiles (id, nombre, numero_casa, rol, debe_cambiar_pass)
-  values (v_user_id, v_nombre, v_casa, 'vecino', false);
+  -- Perfil con rol vecino y casa DEMO (Casa 1)
+  insert into public.profiles (id, nombre, numero_casa, rol)
+  values (v_user_id, v_nombre, v_casa, 'vecino');
 
   raise notice 'Usuario demo creado: % / contraseña: % / casa: %', v_email, v_pass, v_casa;
 end $$;
