@@ -193,7 +193,7 @@
       e.preventDefault();
       var nombre = document.getElementById("prof-name").value.trim();
       var casa = parseInt(document.getElementById("prof-casa").value, 10);
-      var pr = await SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa });
+      var pr = await SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa, p_rol: "vecino" });
       if (pr.error) { SBH.mostrar("msg", SBH.fmtErr(pr.error.message), "error"); return; }
       boot();
     });

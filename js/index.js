@@ -63,7 +63,7 @@
         if (!res.data || !res.data.session) {
           return res;
         }
-        return SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa })
+        return SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa, p_rol: "vecino" })
           .then(function (pr) {
             if (pr.error) {
               SBH.mostrar("msg", "Cuenta creada pero faltó asociar tu casa: " + SBH.fmtErr(pr.error.message), "error");
