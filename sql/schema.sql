@@ -449,3 +449,54 @@ create policy "sugerencias_select_comite" on public.sugerencias
 -- 11) BOTONERA PRIMER ADMIN (ejecutar luego en SQL Editor) -----
 -- update public.profiles set rol = 'admin'
 -- where id = (select id from auth.users where email = 'tu_correo@ejemplo.cl');
+
+-- 12) USUARIO DEMO (vecino autorizado, casa DEMO = Casa 1) ----
+-- EJECUTAR UNA SOLA VEZ desde el SQL Editor de Supabase.
+-- Crea el usuario de prueba demo@demo.cl / demo123456 con rol 'vecino' y la casa DEMO (Casa 1).
+-- El botón "USER DEMO" del login inicia sesión con estas credenciales.
+do $$
+declare
+  v_user_id uuid;
+  v_email text := 'demo@demo.cl';
+  v_pass text := 'demo123456';
+  v_nombre text := 'USER DEMO';
+  v_casa   integer := 1; -- casa DEMO para pruebas
+begin
+  select id into v_user_id from auth.users where email = v_email;
+
+  -- Si el usuario ya existe, no hacer nada (evita repetir el email en auth)
+  if v_user_id is not null then
+    raise notice 'El usuario demo ya existe: %', v_email;
+    return;
+  end if;
+
+  v_user_id := gen_random_uuid();
+
+  insert into auth.users (
+    instance_id, id, aud, role,
+    email, encrypted_password,
+    email_confirmed_at, confirmed_at,
+    created_at, updated_at,
+    confirmation_token, recovery_token,
+    email_change, email_change_token_new, email_change_token_expires_at,
+    raw_app_meta_data, raw_user_meta_data, is_super_admin,
+    banned_until, deleted_at, phone, phone_confirmed_at
+  ) values (
+    '00000000-0000-0000-0000-000000000000',
+    v_user_id, 'authenticated', 'authenticated',
+    v_email, crypt(v_pass, gen_salt('bf')),
+    now(), now(),
+    now(), now(),
+    '', '', '', '', now(),
+    jsonb_build_object('provider', 'email', 'providers', array['email']),
+    jsonb_build_object('nombre', v_nombre),
+    false,
+    null, null, null, null
+  );
+
+  -- Perfil con rol vecino y casa DEMO (Casa 1), como vecino autorizado
+  insert into public.profiles (id, nombre, numero_casa, rol, debe_cambiar_pass)
+  values (v_user_id, v_nombre, v_casa, 'vecino', false);
+
+  raise notice 'Usuario demo creado: % / contraseña: % / casa: %', v_email, v_pass, v_casa;
+end $$;

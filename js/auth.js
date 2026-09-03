@@ -118,8 +118,42 @@
     });
   }
 
+  function demoLogin() {
+    var demoEmail = "demo@demo.cl";
+    var demoPass = "demo123456";
+
+    if (!SB.configOk) {
+      mostrar("msg", configFallback(), "error");
+      return;
+    }
+
+    var btn = document.getElementById("demo-btn");
+    mostrar("msg", "Conectando con usuario demo...", "ok");
+    if (btn) btn.disabled = true;
+
+    SB.client.auth.signInWithPassword({ email: demoEmail, password: demoPass })
+      .then(function (res) {
+        if (btn) btn.disabled = false;
+        if (res.error) {
+          if (/invalid login credentials|invalid email or password/i.test(res.error.message)) {
+            mostrar("msg", "El usuario demo aún no está creado. Ejecuta la sección \"USUARIO DEMO\" de sql/schema.sql en el SQL Editor de Supabase y vuelve a intentar.", "error");
+          } else {
+            mostrar("msg", fmtErr(res.error.message), "error");
+          }
+          return;
+        }
+        mostrar("msg", "¡Bienvenido USER DEMO! Redirigiendo...", "ok");
+        window.location.href = "app.html";
+      });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     bindPrivacyModal();
+
+    var demoBtn = document.getElementById("demo-btn");
+    if (demoBtn) {
+      demoBtn.addEventListener("click", demoLogin);
+    }
   });
 
   window.SB = SB;
