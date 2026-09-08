@@ -103,12 +103,8 @@
         if (!res.data || !res.data.session) {
           return res;
         }
-<<<<<<< HEAD
         // Hay session: crear perfil en la tabla profiles via RPC
         return SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa, p_rol: "vecino" })
-=======
-        return SB.client.rpc("registrar_perfil", { p_nombre: nombre, p_casa: casa, p_rol: "vecino" })
->>>>>>> origin/main
           .then(function (pr) {
             if (pr.error) {
               SBH.mostrar("msg", "Cuenta creada pero faltó asociar tu casa: " + SBH.fmtErr(pr.error.message), "error");
