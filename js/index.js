@@ -49,6 +49,11 @@
   /**
    * Maneja el submit del formulario de inicio de sesion.
    * Usa signInWithPassword de Supabase Auth.
+   *
+   * Feedback de UX al usuario:
+   *   - Mientras autentica: spinner en el boton ("Entrando...").
+   *   - Al exito: mensaje verde en #msg y redireccion a app.html tras 1s.
+   *   - Al fallar: mensaje rojo con el error traducido.
    */
   function onLoginForm(e) {
     e.preventDefault();
@@ -60,10 +65,14 @@
     cargando(btn, true, "Entrando...");
     SB.client.auth.signInWithPassword({ email: email, password: pass })
       .then(function (res) {
-        cargando(btn, false, "Entrar");
-        if (res.error) { SBH.mostrar("msg", SBH.fmtErr(res.error.message), "error"); return; }
-        // Exito: redirigir al panel principal
-        window.location.href = "app.html";
+        if (res.error) {
+          cargando(btn, false, "Entrar");
+          SBH.mostrar("msg", SBH.fmtErr(res.error.message), "error");
+          return null;
+        }
+        // Exito: mostrar confirmacion y redirigir al panel principal
+        SBH.mostrar("msg", "¡Inicio de sesión exitoso! Bienvenido de nuevo.", "ok");
+        setTimeout(function () { window.location.href = "app.html"; }, 1000);
       });
   }
 
@@ -118,7 +127,7 @@
         cargando(btn, false, "Crear cuenta");
         if (res.data && res.data.session) {
           SBH.mostrar("msg", "¡Bienvenido a tu comunidad! Redirigiendo...", "ok");
-          window.location.href = "app.html";
+          setTimeout(function () { window.location.href = "app.html"; }, 1000);
         } else {
           SBH.mostrar("msg", "Te enviamos un correo a " + email + ". Confírmalo y luego inicia sesión.", "ok");
         }
@@ -127,14 +136,25 @@
 
   /**
    * Alterna el estado de carga de un boton.
+   * Muestra un spinner + texto mientras carga, y restaura el texto original al terminar.
    * @param {HTMLButtonElement} btn
-   * @param {boolean} on - true = deshabilitar, false = habilitar
+   * @param {boolean} on - true = cargando (deshabilitar + spinner), false = habilitar
    * @param {string} txt - Texto a mostrar mientras carga
    */
   function cargando(btn, on, txt) {
     if (!btn) return;
-    btn.disabled = on;
-    if (txt) btn.textContent = txt;
+    if (on) {
+      var spin = document.createElement("span");
+      spin.className = "spinner";
+      spin.setAttribute("aria-hidden", "true");
+      btn.innerHTML = "";
+      btn.appendChild(spin);
+      btn.appendChild(document.createTextNode(txt || ""));
+      btn.disabled = true;
+    } else {
+      btn.innerHTML = txt || "";
+      btn.disabled = false;
+    }
   }
 
   function configFallback() {
