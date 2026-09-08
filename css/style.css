@@ -478,6 +478,20 @@ footer.site {
   line-height: 1.4;
 }
 
+.privacy-inline {
+  text-align: center;
+  margin: 14px 0 2px;
+  font-size: 12.5px;
+}
+.privacy-inline a {
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.privacy-inline a:hover { color: var(--forest); }
+
 .modal-overlay {
   position: fixed;
   inset: 0;
