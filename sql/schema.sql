@@ -557,4 +557,3 @@ create policy "sugerencias_select_comite" on public.sugerencias
 --
 -- update public.profiles set rol = 'admin'
 -- where id = (select id from auth.users where email = 'tu_correo@ejemplo.cl');
--- ============================================================
