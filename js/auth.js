@@ -1,9 +1,27 @@
+/**
+ * auth.js — Inicializacion del cliente Supabase y utilidades compartidas.
+ *
+ * Este archivo se carga en AMBAS paginas (index.html y app.html) antes
+ * del modulo especifico de cada una. Expone dos objetos globales:
+ *
+ *   SB  — Configuracion de la app (categorias, estados, cliente Supabase)
+ *   SBH — Funciones de ayuda (mostrar mensajes, escapar HTML, etc.)
+ *
+ * Seguridad: La anon key es publica por disenio de Supabase. Todas las
+ * restricciones de acceso estan garantizadas por Row Level Security (RLS)
+ * en PostgreSQL. Ver sql/schema.sql para el detalle de las politicas.
+ */
 (function () {
   "use strict";
+
+  /* ------------------------------------------------------------------ */
+  /*  Inicializacion del cliente Supabase                               */
+  /* ------------------------------------------------------------------ */
 
   var cfg = window.APP_CONFIG || {};
   var supabaseLoaded = (typeof supabase !== "undefined");
 
+  /** Objeto principal con catalogos y el cliente de base de datos. */
   var SB = {
     CATEGORIAS: {
       acceso: "Control de accesos",
@@ -18,8 +36,14 @@
     configOk: false
   };
 
+  /**
+   * Valida que la configuracion exista y no sea el placeholder por defecto.
+   * El check indexOf("PEGA") detecta si el usuario no reemplazo el texto
+   * de ejemplo en config.js ("PEGA_AQUI...").
+   */
   SB.configOk = !!(supabaseLoaded && cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY &&
     cfg.SUPABASE_URL.indexOf("PEGA") === -1 && cfg.SUPABASE_ANON_KEY.indexOf("PEGA") === -1);
+
   if (SB.configOk) {
     try {
       SB.client = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
@@ -28,6 +52,16 @@
     }
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Funciones de ayuda (SBH)                                          */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Muestra u oculta un mensaje en la interfaz.
+   * @param {string} elId - ID del elemento .msg
+   * @param {string} text - Texto a mostrar (vacio para ocultar)
+   * @param {string} tipo - "ok" (verde) o "error" (rojo, por defecto)
+   */
   function mostrar(elId, text, tipo) {
     var m = document.getElementById(elId);
     if (!m) return;
@@ -35,12 +69,21 @@
     m.className = "msg " + (tipo || "error");
   }
 
+  /**
+   * Escapa HTML para insercion segura en el DOM.
+   * Usa textContent -> innerHTML para obtener la representacion escapada.
+   */
   function esc(s) {
     var d = document.createElement("div");
     d.textContent = (s == null) ? "" : String(s);
     return d.innerHTML;
   }
 
+  /**
+   * Formatea una fecha ISO a formato legible en espanol chileno.
+   * @param {string} iso - Fecha en formato ISO 8601
+   * @returns {string} Fecha formateada (ej: "05 sep 2026, 14:30")
+   */
   function fmtFecha(iso) {
     if (!iso) return "";
     var d = new Date(iso);
@@ -50,6 +93,11 @@
     });
   }
 
+  /**
+   * Traduce mensajes de error tecnicos de Supabase/PostgreSQL a mensajes
+   * amigables para el usuario final. Cubre: errores de conexion, auth,
+   * validacion de check constraints, RLS, rate limiting, JWT, etc.
+   */
   function fmtErr(m) {
     var s = String((m == null) ? "" : m);
     if (/could not find the function|schema cache/i.test(s))
@@ -83,6 +131,11 @@
     return s;
   }
 
+  /**
+   * Llena un <select> con las 142 casas del condominio.
+   * Usa DocumentFragment para minimizar reflows del DOM.
+   * @param {HTMLSelectElement} select - Elemento select a poblar
+   */
   function llenarCasas(select) {
     if (!select || select.options.length) return;
     var frag = document.createDocumentFragment();
@@ -95,6 +148,10 @@
     select.appendChild(frag);
   }
 
+  /**
+   * Vincula el modal de politica de privacidad al link del pie de pagina.
+   * Soporta: click en el link, click en X, click fuera del modal, y tecla Escape.
+   */
   function bindPrivacyModal() {
     var link = document.getElementById("link-privacy");
     var modal = document.getElementById("modal-privacidad");
@@ -106,21 +163,40 @@
       modal.classList.remove("hidden");
       modal.setAttribute("aria-hidden", "false");
     }
+
     function cerrar() {
       modal.classList.add("hidden");
       modal.setAttribute("aria-hidden", "true");
     }
 
     link.addEventListener("click", abrir);
+
     if (closeBtn) closeBtn.addEventListener("click", cerrar);
+
+    // Cerrar al hacer clic fuera del contenido del modal
     modal.addEventListener("click", function (e) {
       if (e.target === modal) cerrar();
     });
+
+    // #7: Cerrar con tecla Escape para accesibilidad
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+        cerrar();
+      }
+    });
   }
+
+  /* ------------------------------------------------------------------ */
+  /*  Inicializacion global al cargar el DOM                            */
+  /* ------------------------------------------------------------------ */
 
   document.addEventListener("DOMContentLoaded", function () {
     bindPrivacyModal();
   });
+
+  /* ------------------------------------------------------------------ */
+  /*  Exponer globals para otros modulos                                 */
+  /* ------------------------------------------------------------------ */
 
   window.SB = SB;
   window.SBH = { mostrar: mostrar, esc: esc, fmtFecha: fmtFecha, llenarCasas: llenarCasas, fmtErr: fmtErr, bindPrivacyModal: bindPrivacyModal };

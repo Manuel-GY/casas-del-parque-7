@@ -1,26 +1,87 @@
+/**
+ * app.js — Panel principal de la aplicacion.
+ *
+ * Se ejecuta exclusivamente en app.html. Maneja:
+ *   - Sesion y perfil del usuario (carga, validacion, cambio de contrasena)
+ *   - Navegacion por pestaas (vecino vs comite/admin)
+ *   - CRUD de reclamos y sugerencias (envio, listado, respuesta)
+ *   - Estadisticas comunitarias con graficos Canvas
+ *   - Exportacion a CSV compatible con Excel
+ *   - Gestion de usuarios (solo admin)
+ *
+ * Seguridad:
+ *   - Todas las operaciones de lectura/escritura van contra Supabase
+ *   - Las restricciones de acceso las controla RLS en PostgreSQL
+ *   - Las funciones RPC (reclamos_detalle, responder_reclamo, etc.)
+ *     validan el rol del usuario dentro de SECURITY DEFINER
+ *
+ * Mejoras aplicadas:
+ *   - Flags para evitar duplicacion de event listeners (#4)
+ *   - Loading states en todas las secciones (#5)
+ *   - Confirmacion antes de cambiar rol de usuario (#6)
+ *   - Paginacion en listas de reclamos/sugerencias (#9)
+ */
 (function () {
   "use strict";
 
-  var user = null;
-  var profile = null;
-  var rol = null;
-  var recCache = [];
-  var sugCache = [];
+  /* ------------------------------------------------------------------ */
+  /*  Estado global de la sesion                                         */
+  /* ------------------------------------------------------------------ */
+
+  var user = null;      // Objeto auth.users de Supabase
+  var profile = null;   // Registro de la tabla profiles
+  var rol = null;       // 'vecino' | 'comite' | 'admin'
+  var recCache = [];    // Cache local de reclamos (para filtros)
+  var sugCache = [];    // Cache local de sugerencias (para filtros)
   var filtroSev = "todos";
   var busquedaRec = "";
   var busquedaSug = "";
 
+  /* ------------------------------------------------------------------ */
+  /*  Flags para evitar duplicacion de event listeners (#4)              */
+  /*                                                                     */
+  /*  Problema: boot() se llama al cargar la pagina Y despues de cambiar */
+  /*  contrasena. Sin estos flags, llenarReclamoForm() y                */
+  /*  llenarSugerenciaForm() adjuntarian listeners duplicados.          */
+  /* ------------------------------------------------------------------ */
+  var _reclamoBound = false;
+  var _sugerenciaBound = false;
+
+  /* ------------------------------------------------------------------ */
+  /*  Paginacion (#9)                                                    */
+  /*                                                                     */
+  /*  Muestra 20 registros por pagina en las listas de comite/admin.    */
+  /*  Las listas del vecino (mis reclamos / mis sugerencias) no se      */
+  /*  paginan porque normalmente son pocas.                             */
+  /* ------------------------------------------------------------------ */
+  var PAGE_SIZE = 20;
+  var recPage = 1;
+  var sugPage = 1;
+
+  /* ------------------------------------------------------------------ */
+  /*  Helpers                                                            */
+  /* ------------------------------------------------------------------ */
+
+  /** Genera un badge HTML para chips de estado/severidad. */
   function chip(txt, css) {
     return '<span class="chip ' + css + '">' + SBH.esc(txt) + "</span>";
   }
 
-  /* ---------- Sesión / perfil ---------- */
-
-  function guard(cond, sec) {
-    if (cond) return;
-    SBH.mostrar("msg", "No tienes permisos para ver esto.", "error");
+  /** Muestra texto de carga mientras se obtienen datos del servidor. */
+  function showLoading(wrapId) {
+    var wrap = document.getElementById(wrapId);
+    if (wrap) wrap.innerHTML = '<p class="hint">Cargando...</p>';
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Sesion / perfil                                                    */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Construye la barra de navegacion por pestanas segun el rol del usuario.
+   * - Vecino: Nuevo, Mis Reclamos, Sugerir, Mis Sugerencias, Estadisticas
+   * - Comite/Admin: Reclamos, Sugerencias, Estadisticas (, Usuarios si admin)
+   */
   async function definirNav() {
     var nav = document.getElementById("nav");
     nav.innerHTML = "";
@@ -55,6 +116,10 @@
     mostrarSeccion(tabs[0].id);
   }
 
+  /**
+   * Muestra una seccion ocultando todas las demas.
+   * Tambien dispara la carga de datos cuando la seccion lo requiere.
+   */
   function mostrarSeccion(id) {
     var secciones = ["sec-nuevo", "sec-mios", "sec-sugerir", "sec-mias", "sec-reclamos", "sec-sugerencias", "sec-stats", "sec-usuarios"];
     secciones.forEach(function (s) { document.getElementById(s).hidden = (s !== id); });
@@ -70,6 +135,14 @@
     if (id === "sec-usuarios") cargarUsuarios();
   }
 
+  /**
+   * Inicializacion principal de la sesion.
+   * Verifica autenticacion, carga perfil, y decide que vista mostrar:
+   *   - Sin sesion -> redirigir a index.html
+   *   - Sin perfil -> mostrar formulario de profiling
+   *   - Con password temporal -> mostrar cambio obligatorio
+   *   - OK -> mostrar panel principal
+   */
   async function boot() {
     if (!SB.configOk) {
       SBH.mostrar("msg", "Falta configurar config.js (URL y anon key de Supabase).", "error");
@@ -85,6 +158,7 @@
       return;
     }
 
+    // Si el usuario no tiene perfil, necesita completar registro
     if (!gp.data) {
       document.getElementById("profiling").classList.remove("hidden");
       SBH.llenarCasas(document.getElementById("prof-casa"));
@@ -93,6 +167,8 @@
 
     profile = gp.data;
     rol = profile.rol;
+
+    // Actualizar barra de usuario
     document.getElementById("user-nombre").textContent = profile.nombre;
     document.getElementById("user-casa").textContent = profile.numero_casa ? "Casa " + profile.numero_casa : "Sin casa";
     var rl = document.getElementById("user-rol");
@@ -103,6 +179,7 @@
     document.getElementById("welcome-tx").innerHTML =
       "¡Hola, " + SBH.esc(primer) + '! <span style="color:var(--sun-dark)">☀</span>';
 
+    // Verificar si debe cambiar contrasena por defecto
     if (requiereCambioPass(user, profile)) {
       document.getElementById("app-main").classList.add("hidden");
       document.getElementById("card-cambiar-pass").classList.remove("hidden");
@@ -110,13 +187,22 @@
       return;
     }
 
+    // Todo OK: mostrar panel principal
     document.getElementById("card-cambiar-pass").classList.add("hidden");
     document.getElementById("app-main").classList.remove("hidden");
+
+    // Poblar selects de categorias/severidad (una sola vez)
     llenarReclamoForm();
     llenarSugerenciaForm();
+
     await definirNav();
   }
 
+  /**
+   * Determina si el usuario necesita cambiar su contrasena.
+   * Caso 1: perfil tiene debe_cambiar_pass = true
+   * Caso 2: es una cuenta generica (admin/comite) sin flag de cambio
+   */
   function requiereCambioPass(u, p) {
     if (!u) return false;
     if (p && p.debe_cambiar_pass === true) return true;
@@ -126,14 +212,20 @@
     return esGenerica && !cambiada;
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Event listeners principales (DOMContentLoaded)                    */
+  /* ------------------------------------------------------------------ */
+
   document.addEventListener("DOMContentLoaded", function () {
     if (!document.getElementById("app-main")) return;
 
+    /* -- Cerrar sesion -- */
     document.getElementById("btn-logout").addEventListener("click", async function () {
       await SB.client.auth.signOut();
       window.location.href = "index.html";
     });
 
+    /* -- Boton "Cambiar clave" en el topbar -- */
     var btnCambiarPass = document.getElementById("btn-cambiar-pass");
     if (btnCambiarPass) {
       btnCambiarPass.addEventListener("click", function () {
@@ -143,6 +235,7 @@
       });
     }
 
+    /* -- Formulario de cambio de contrasena -- */
     var formCambiarPass = document.getElementById("form-cambiar-pass");
     if (formCambiarPass) {
       formCambiarPass.addEventListener("submit", async function (e) {
@@ -161,8 +254,9 @@
 
         var btn = document.getElementById("btn-save-pass");
         btn.disabled = true;
-        btn.textContent = "Actualizando…";
+        btn.textContent = "Actualizando...";
 
+        // Actualizar en Supabase Auth y marcar en el perfil
         var up = await SB.client.auth.updateUser({
           password: p1,
           data: { clave_cambiada: true }
@@ -175,6 +269,7 @@
           return;
         }
 
+        // Actualizar flags en la DB y en memoria local
         await SB.client.rpc("marcar_clave_cambiada");
         if (profile) profile.debe_cambiar_pass = false;
         if (user) {
@@ -189,6 +284,7 @@
       });
     }
 
+    /* -- Formulario de profiling (completar registro) -- */
     document.getElementById("profiling-form").addEventListener("submit", async function (e) {
       e.preventDefault();
       var nombre = document.getElementById("prof-name").value.trim();
@@ -198,10 +294,12 @@
       boot();
     });
 
+    /* -- Filtros de busqueda y severidad -- */
     var fsel = document.getElementById("filtro-severidad");
     if (fsel) {
       fsel.addEventListener("change", function () {
         filtroSev = fsel.value;
+        recPage = 1; // Reset pagina al cambiar filtro
         rendReclamos();
       });
     }
@@ -210,6 +308,7 @@
     if (fBuscarRec) {
       fBuscarRec.addEventListener("input", function () {
         busquedaRec = fBuscarRec.value.trim().toLowerCase();
+        recPage = 1; // Reset pagina al buscar
         rendReclamos();
       });
     }
@@ -218,10 +317,12 @@
     if (fBuscarSug) {
       fBuscarSug.addEventListener("input", function () {
         busquedaSug = fBuscarSug.value.trim().toLowerCase();
+        sugPage = 1; // Reset pagina al buscar
         rendSugerencias();
       });
     }
 
+    /* -- Botones de exportar CSV -- */
     var btnExpRec = document.getElementById("btn-exportar-reclamos");
     if (btnExpRec) {
       btnExpRec.addEventListener("click", function () { exportarCSVReclamos(); });
@@ -235,21 +336,36 @@
     boot();
   });
 
-  /* ---------- Vecino: nuevo reclamo ---------- */
+  /* ================================================================== */
+  /*  VECINO: Nuevo reclamo                                              */
+  /* ================================================================== */
 
+  /**
+   * Pobla los selects de categoria y severidad del formulario de reclamo.
+   * Los listeners se adjuntan UNA SOLA VEZ gracias al flag _reclamoBound (#4).
+   */
   function llenarReclamoForm() {
     var cat = document.getElementById("recl-categoria");
-    Object.keys(SB.CATEGORIAS).forEach(function (k) {
-      var o = document.createElement("option");
-      o.value = k; o.textContent = SB.CATEGORIAS[k];
-      cat.appendChild(o);
-    });
+    // Solo poblar si esta vacio
+    if (cat && !cat.options.length) {
+      Object.keys(SB.CATEGORIAS).forEach(function (k) {
+        var o = document.createElement("option");
+        o.value = k; o.textContent = SB.CATEGORIAS[k];
+        cat.appendChild(o);
+      });
+    }
     var sev = document.getElementById("recl-severidad");
-    Object.keys(SB.SEVERIDAD).forEach(function (k) {
-      var o = document.createElement("option");
-      o.value = k; o.textContent = SB.SEVERIDAD[k];
-      sev.appendChild(o);
-    });
+    if (sev && !sev.options.length) {
+      Object.keys(SB.SEVERIDAD).forEach(function (k) {
+        var o = document.createElement("option");
+        o.value = k; o.textContent = SB.SEVERIDAD[k];
+        sev.appendChild(o);
+      });
+    }
+
+    // #4: Solo adjuntar el listener una vez
+    if (_reclamoBound) return;
+    _reclamoBound = true;
 
     document.getElementById("reclamo-form").addEventListener("submit", async function (e) {
       e.preventDefault();
@@ -279,9 +395,19 @@
     });
   }
 
-  /* ---------- Vecino: nueva sugerencia ---------- */
+  /* ================================================================== */
+  /*  VECINO: Nueva sugerencia                                           */
+  /* ================================================================== */
 
+  /**
+   * Vincula el formulario de sugerencias.
+   * Listener unico gracias al flag _sugerenciaBound (#4).
+   */
   function llenarSugerenciaForm() {
+    // #4: Solo adjuntar el listener una vez
+    if (_sugerenciaBound) return;
+    _sugerenciaBound = true;
+
     document.getElementById("sugerencia-form").addEventListener("submit", async function (e) {
       e.preventDefault();
       SBH.mostrar("msg", "", "ok");
@@ -308,9 +434,12 @@
     });
   }
 
-  /* ---------- Vecino: mis sugerencias ---------- */
+  /* ================================================================== */
+  /*  VECINO: Mis sugerencias                                            */
+  /* ================================================================== */
 
   async function cargarMias() {
+    showLoading("mias-list");
     var wrap = document.getElementById("mias-list");
     var q = await SB.client.from("sugerencias")
       .select("*")
@@ -338,9 +467,12 @@
     );
   }
 
-  /* ---------- Vecino: mis reclamos ---------- */
+  /* ================================================================== */
+  /*  VECINO: Mis reclamos                                               */
+  /* ================================================================== */
 
   async function cargarMios() {
+    showLoading("mios-list");
     var wrap = document.getElementById("mios-list");
     var q = await SB.client.from("reclamos")
       .select("*")
@@ -369,11 +501,13 @@
     );
   }
 
-  /* ---------- Comité/Admin: lista + responder ---------- */
+  /* ================================================================== */
+  /*  COMITE/ADMIN: Reclamos de la comunidad                             */
+  /* ================================================================== */
 
   async function cargarReclamos() {
+    showLoading("reclamos-list");
     var wrap = document.getElementById("reclamos-list");
-    wrap.innerHTML = '<p class="hint">Cargando…</p>';
     var sel = document.getElementById("filtro-severidad");
     if (sel && !sel.dataset.ready) {
       sel.innerHTML = '<option value="todos">Todas</option>' +
@@ -386,9 +520,14 @@
     var q = await SB.client.rpc("reclamos_detalle");
     if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
     recCache = q.data || [];
+    recPage = 1;
     rendReclamos();
   }
 
+  /**
+   * Renderiza la lista paginada de reclamos con filtros aplicados.
+   * Los botones de paginacion se renderizan inline despues de la lista.
+   */
   function rendReclamos() {
     var wrap = document.getElementById("reclamos-list");
     var lista = recCache.filter(function (r) {
@@ -405,8 +544,17 @@
         : '<p class="hint">No hay reclamos aún.</p>';
       return;
     }
-    wrap.innerHTML = lista.map(tarjetaComite).join("");
+
+    // #9: Paginacion
+    var total = lista.length;
+    var totalPages = Math.ceil(total / PAGE_SIZE);
+    if (recPage > totalPages) recPage = totalPages;
+    var start = (recPage - 1) * PAGE_SIZE;
+    var page = lista.slice(start, start + PAGE_SIZE);
+
+    wrap.innerHTML = page.map(tarjetaComite).join("") + renderPagination(total, recPage, totalPages, "rec");
     bindResponder();
+    bindPagination("rec", function (p) { recPage = p; rendReclamos(); });
   }
 
   function tarjetaComite(r) {
@@ -441,6 +589,7 @@
     );
   }
 
+  /** Vincula los formularios de respuesta de cada reclamo. */
   function bindResponder() {
     document.querySelectorAll("#reclamos-list .responder").forEach(function (f) {
       f.addEventListener("submit", async function (e) {
@@ -459,14 +608,17 @@
     });
   }
 
-  /* ---------- Comité/Admin: sugerencias + responder ---------- */
+  /* ================================================================== */
+  /*  COMITE/ADMIN: Sugerencias de la comunidad                          */
+  /* ================================================================== */
 
   async function cargarSugerencias() {
+    showLoading("sugerencias-list");
     var wrap = document.getElementById("sugerencias-list");
-    wrap.innerHTML = '<p class="hint">Cargando…</p>';
     var q = await SB.client.rpc("sugerencias_detalle");
     if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
     sugCache = q.data || [];
+    sugPage = 1;
     rendSugerencias();
   }
 
@@ -485,8 +637,17 @@
         : '<p class="hint">No hay sugerencias aún.</p>';
       return;
     }
-    wrap.innerHTML = lista.map(tarjetaSugerencia).join("");
+
+    // #9: Paginacion
+    var total = lista.length;
+    var totalPages = Math.ceil(total / PAGE_SIZE);
+    if (sugPage > totalPages) sugPage = totalPages;
+    var start = (sugPage - 1) * PAGE_SIZE;
+    var page = lista.slice(start, start + PAGE_SIZE);
+
+    wrap.innerHTML = page.map(tarjetaSugerencia).join("") + renderPagination(total, sugPage, totalPages, "sug");
     bindResponderSug();
+    bindPagination("sug", function (p) { sugPage = p; rendSugerencias(); });
   }
 
   function tarjetaSugerencia(s) {
@@ -538,8 +699,57 @@
     });
   }
 
-  /* ---------- Exportar CSV ---------- */
+  /* ================================================================== */
+  /*  Paginacion (#9)                                                    */
+  /* ================================================================== */
 
+  /**
+   * Genera HTML de botones de paginacion (Anterior / Siguiente + indicador).
+   * @param {number} total - Total de registros
+   * @param {number} current - Pagina actual (1-based)
+   * @param {number} totalPages - Total de paginas
+   * @param {string} prefix - Prefijo para IDs unicos ("rec" o "sug")
+   * @returns {string} HTML de la paginacion
+   */
+  function renderPagination(total, current, totalPages, prefix) {
+    if (totalPages <= 1) return "";
+    return (
+      '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;">' +
+        '<button class="btn ghost sm" type="button" id="' + prefix + '-prev"' +
+          (current <= 1 ? " disabled" : "") + '>Anterior</button>' +
+        '<span style="font-size:13px;font-weight:700;color:var(--muted);">' +
+          current + ' / ' + totalPages + ' (' + total + ' registros)</span>' +
+        '<button class="btn ghost sm" type="button" id="' + prefix + '-next"' +
+          (current >= totalPages ? " disabled" : "") + '>Siguiente</button>' +
+      '</div>'
+    );
+  }
+
+  /** Vincula los botones de paginacion para una lista. */
+  function bindPagination(prefix, onPageChange) {
+    var prev = document.getElementById(prefix + "-prev");
+    var next = document.getElementById(prefix + "-next");
+    if (prev) prev.addEventListener("click", function () {
+      var cur = prefix === "rec" ? recPage : sugPage;
+      if (cur > 1) onPageChange(cur - 1);
+    });
+    if (next) next.addEventListener("click", function () {
+      var cur = prefix === "rec" ? recPage : sugPage;
+      onPageChange(cur + 1);
+    });
+  }
+
+  /* ================================================================== */
+  /*  Exportar CSV                                                       */
+  /* ================================================================== */
+
+  /**
+   * Genera un archivo CSV y lo descarga en el navegador.
+   * Usa BOM UTF-8 (\uFEFF) para compatibilidad con Excel en Windows.
+   * @param {Array} datos - Array de objetos
+   * @param {string} nombreArchivo - Nombre del archivo a descargar
+   * @param {Array} columnas - Definicion de columnas [{ label, val }]
+   */
   function exportarCSV(datos, nombreArchivo, columnas) {
     if (!datos || !datos.length) {
       SBH.mostrar("msg", "No hay datos para exportar.", "error");
@@ -595,13 +805,22 @@
     exportarCSV(sugCache, "sugerencias_casas_del_parque_7.csv", cols);
   }
 
-  /* ---------- Estadísticas ---------- */
+  /* ================================================================== */
+  /*  Estadisticas                                                       */
+  /* ================================================================== */
 
+  /**
+   * Carga y renderiza las estadisticas comunitarias.
+   * Llama a la funcion RPC 'estadisticas' que retorna JSONB con
+   * conteos agregados (total, por estado, categoria, severidad, mes).
+   * Los graficos se dibujan via SBStats.drawBars() (Canvas puro).
+   */
   async function cargarStats() {
     var s = await SB.client.rpc("estadisticas");
     if (s.error) { SBH.mostrar("msg", SBH.fmtErr(s.error.message), "error"); return; }
     var e = s.data || {};
 
+    // Tarjetas resumen de reclamos
     var grid = document.getElementById("stats-grid");
     grid.innerHTML =
       statCard(e.total || 0, "Reclamos totales") +
@@ -609,6 +828,7 @@
       statCard(e.por_estado && e.por_estado.en_revision || 0, "En revisión") +
       statCard(e.por_estado && e.por_estado.resuelto || 0, "Resueltos");
 
+    // Graficos de barras de reclamos
     SBStats.drawBars(
       document.getElementById("chart-estado"),
       Object.keys(e.por_estado || {}).map(function (k) { return SB.ESTADOS[k] || k; }),
@@ -628,7 +848,7 @@
     var cant = (e.por_mes || []).map(function (m) { return m.cantidad; });
     SBStats.drawBars(document.getElementById("chart-mes"), meses, cant);
 
-    /* Sugerencias: contadores + gráficos (después de los de reclamos) */
+    // Tarjetas resumen de sugerencias
     var gridSug = document.getElementById("stats-grid-sug");
     gridSug.innerHTML =
       statCard(e.sug_total || 0, "Sugerencias totales") +
@@ -636,6 +856,7 @@
       statCard(e.sug_por_estado && e.sug_por_estado.en_revision || 0, "En revisión") +
       statCard(e.sug_por_estado && e.sug_por_estado.resuelta || 0, "Resueltas");
 
+    // Graficos de barras de sugerencias
     SBStats.drawBars(
       document.getElementById("chart-sug-estado"),
       Object.keys(e.sug_por_estado || {}).map(function (k) {
@@ -652,19 +873,28 @@
     return '<div class="stat"><div class="num">' + num + '</div><div class="lbl">' + SBH.esc(lbl) + "</div></div>";
   }
 
-  /* ---------- Admin: usuarios ---------- */
+  /* ================================================================== */
+  /*  Admin: Gestion de usuarios                                         */
+  /* ================================================================== */
 
+  /**
+   * Lista todos los usuarios y permite al admin cambiar roles.
+   * #6: Se agrega confirmacion antes de aplicar cambios de rol.
+   */
   async function cargarUsuarios() {
+    showLoading("usuarios-list");
     var wrap = document.getElementById("usuarios-list");
     if (rol !== "admin") { wrap.innerHTML = '<p class="hint">Solo admin.</p>'; return; }
     var q = await SB.client.from("profiles").select("id,nombre,numero_casa,rol,created_at").order("numero_casa");
     if (q.error) { wrap.innerHTML = '<p class="hint">' + SBH.esc(SBH.fmtErr(q.error.message)) + "</p>"; return; }
     if (!q.data.length) { wrap.innerHTML = '<p class="hint">No hay usuarios registrados.</p>'; return; }
+
+    var rolLabels = { vecino: "Vecino", comite: "Comité", admin: "Admin" };
     wrap.innerHTML = q.data.map(function (p) {
       return (
         '<div class="user-row" data-id="' + p.id + '">' +
           '<div><div class="nm">' + SBH.esc(p.nombre) + '</div>' +
-          '<div class="dt">' + (p.numero_casa ? "Casa " + p.numero_casa : "Sin casa") + " · " + (p.rol === "comite" ? "Comité" : p.rol === "admin" ? "Admin" : "Vecino") + "</div></div>" +
+          '<div class="dt">' + (p.numero_casa ? "Casa " + p.numero_casa : "Sin casa") + " · " + (rolLabels[p.rol] || p.rol) + "</div></div>" +
           '<select class="urol">' +
             '<option value="vecino"' + (p.rol === "vecino" ? " selected" : "") + ">Vecino</option>" +
             '<option value="comite"' + (p.rol === "comite" ? " selected" : "") + ">Comité</option>" +
@@ -675,10 +905,20 @@
       );
     }).join("");
 
+    // #6: Vincular botones con confirmacion
     wrap.querySelectorAll(".user-row").forEach(function (row) {
       row.querySelector(".ubtn").addEventListener("click", async function () {
         var id = row.dataset.id;
         var nuevoRol = row.querySelector(".urol").value;
+        var nombreUsuario = row.querySelector(".nm").textContent;
+        var rolActual = row.querySelector(".dt").textContent.split(" · ").pop();
+        var nuevoRolLabel = rolLabels[nuevoRol] || nuevoRol;
+
+        // #6: Confirmar antes de cambiar rol
+        if (!confirm("¿Estás seguro de cambiar el rol de \"" + nombreUsuario + "\" de " + rolActual + " a " + nuevoRolLabel + "?")) {
+          return;
+        }
+
         var r = await SB.client.rpc("asignar_rol", { p_usuario: id, p_rol: nuevoRol });
         if (r.error) { SBH.mostrar("msg", SBH.fmtErr(r.error.message), "error"); return; }
         SBH.mostrar("msg", "Rol actualizado.", "ok");

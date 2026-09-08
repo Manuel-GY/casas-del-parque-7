@@ -46,6 +46,8 @@ Plataforma web progresiva (GitHub Pages + Supabase) desarrollada de forma **Serv
 
 > ⚠️ Al ingresar por primera vez con estas cuentas, el sistema exigirá crear una contraseña personalizada segura antes de mostrar el panel.
 
+> **⚠️ ADVERTENCIA DE SEGURIDAD:** Estas credenciales son solo para pruebas en entornos de desarrollo. **Nunca** las uses en producción. Si el repositorio es público, cualquiera podría verlas. Recuerda cambiar las contraseñas antes de desplegar en un entorno real. Para configurar credenciales seguras, usa el archivo `config.js` (excluido del repositorio mediante `.gitignore`) copiando desde `config.example.js`.
+
 ### Script SQL para Inicialización de Cuentas (Ejecutar en Supabase SQL Editor):
 
 ```sql
@@ -70,7 +72,8 @@ where u.email = 'administracion@casasdelparque7.cl' and u.id = p.id;
 ### 1. Configurar Supabase Backend
 1. Crea un proyecto gratuito en [https://supabase.com](https://supabase.com).
 2. Ve a **SQL Editor → New query**, pega el contenido de [`sql/schema.sql`](sql/schema.sql) y ejecútalo.
-3. Copia la **URL del proyecto** y la **anon key** en **Project Settings → API** y agrégalas en [`config.js`](config.js).
+1. Copia `config.example.js` como `config.js` y rellena con tus credenciales de Supabase (URL y anon key desde **Project Settings → API**).
+2. **`config.js` está excluido del repositorio** por seguridad (ver `.gitignore`). No lo subas nunca con credenciales reales.
 
 ### 2. Configurar el Primer Administrador
 Tras crear tu primera cuenta como vecino, promuévela a `admin` ejecutando en el SQL Editor:

@@ -1,13 +1,46 @@
+/**
+ * stats.js — Motor de graficos de barras en HTML5 Canvas.
+ *
+ * Renderiza graficos de barras animados con:
+ *   - Gradientes y efectos de brillo en cada barra
+ *   - Tooltips interactivos al pasar el mouse / tocar
+ *   - Adaptacion automatica al tamano del contenedor (DPR-aware)
+ *   - Animacion de entrada con easing cubico
+ *
+ * Sin dependencias externas: todo se dibuja con Canvas 2D API.
+ *
+ * API publica (window.SBStats):
+ *   drawBars(canvas, labels, values) - Dibuja o actualiza un grafico
+ *   fmtMes(ym) - Formatea "YYYY-MM" a "ene 26"
+ *
+ * El grafico usa un registry interno para mantener el estado de cada canvas
+ * (rects para hit-testing del tooltip, indice activo, intentos de render,
+ * frames de animacion pendientes).
+ */
 (function () {
   "use strict";
 
+  /* ------------------------------------------------------------------ */
+  /*  Configuracion                                                      */
+  /* ------------------------------------------------------------------ */
+
+  /** Paleta de colores para las barras (se repite ciclicamente). */
   var PALETTE = ["#16a34a", "#0e7490", "#c2410c", "#7c3aed", "#b91c1c", "#f59e0b", "#475569", "#059669", "#1d4ed8", "#be185d"];
 
+  /** Duracion de la animacion de entrada en milisegundos. */
   var ANIM_MS = 420;
+
+  /** Polyfill para requestAnimationFrame en navegadores antiguos. */
   var raf = window.requestAnimationFrame ||
     function (cb) { return setTimeout(function () { cb(Date.now()); }, 16); };
   var caf = window.cancelAnimationFrame || function (id) { clearTimeout(id); };
 
+  /**
+   * Registro interno de todos los canvas renderizados.
+   * Cada entrada contiene: canvas, labels, values, rects (hit areas),
+   * activeIdx (barra resaltada), raf (frame pendiente), h (altura),
+   * tries (intentos cuando el canvas esta oculto).
+   */
   var registry = [];
 
   function findRecord(canvas) {
@@ -36,8 +69,18 @@
     return rec;
   }
 
-  /* ---------- helpers ---------- */
+  /* ------------------------------------------------------------------ */
+  /*  Helpers de dibujo                                                  */
+  /* ------------------------------------------------------------------ */
 
+  /**
+   * Divide texto en lineas respetando el ancho maximo.
+   * Maximo 2 lineas; si la segunda es muy larga, agrega "...".
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {string} lbl - Texto a dividir
+   * @param {number} maxW - Ancho maximo en pixeles
+   * @returns {string[]} Array de 1-2 lineas
+   */
   function wrapLines(ctx, lbl, maxW) {
     var words = String(lbl).split(/\s+/).filter(Boolean);
     if (!words.length) return [""];
@@ -59,11 +102,15 @@
     } else if (lines.length === 1) {
       lines.push(cur);
     } else {
-      if (addEll || ctx.measureText(cur).width > maxW) lines[1] += "…";
+      if (addEll || ctx.measureText(cur).width > maxW) lines[1] += "\u2026";
     }
     return lines;
   }
 
+  /**
+   * Dibuja un rectangulo con esquinas redondeadas (solo arriba).
+   * Utilizado para las barras del grafico.
+   */
   function cornerRect(ctx, x, y, w, h, r) {
     if (h < 2 * r) r = h / 2;
     ctx.moveTo(x + r, y);
@@ -76,6 +123,12 @@
     ctx.closePath();
   }
 
+  /**
+   * Aclara u oscurece un color hex segun la cantidad indicada.
+   * @param {string} hex - Color "#RRGGBB"
+   * @param {number} amt - 0 a 1 para aclarar, -1 a 0 para oscurecer
+   * @returns {string} Color en formato "rgb(r,g,b)"
+   */
   function shade(hex, amt) {
     var c = parseInt(hex.slice(1), 16);
     var r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
@@ -87,14 +140,18 @@
     return "rgb(" + r + "," + g + "," + b + ")";
   }
 
+  /** Escapa HTML para insercion segura en tooltips. */
   function escHtml(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  /* ---------- tooltip ---------- */
+  /* ------------------------------------------------------------------ */
+  /*  Tooltip interactivo                                                */
+  /* ------------------------------------------------------------------ */
 
   var tooltipEl = null;
 
+  /** Crea el elemento tooltip una sola vez y lo adjunta al body. */
   function ensureTooltip() {
     if (tooltipEl) return tooltipEl;
     var t = document.createElement("div");
@@ -112,6 +169,14 @@
     }
   }
 
+  /**
+   * Muestra el tooltip con el valor y label de la barra.
+   * Calcula posicion automatica para no salirse de la pantalla.
+   * @param {number} value - Valor numerico de la barra
+   * @param {string} label - Texto de la categoria
+   * @param {number} x - Posicion X (centro de la barra en viewport)
+   * @param {number} y - Posicion Y (tope de la barra en viewport)
+   */
   function showTooltip(value, label, x, y) {
     var t = ensureTooltip();
     t.innerHTML =
@@ -126,6 +191,7 @@
     var vw = document.documentElement.clientWidth || document.body.clientWidth;
     var vh = document.documentElement.clientHeight || document.body.clientHeight;
 
+    // Centrar horizontalmente, arriba de la barra (o abajo si no cabe arriba)
     var L = Math.max(8, Math.min(x - w / 2, vw - w - 8));
     var T = y - h - 10;
     if (T < 8) T = y + 14;
@@ -133,14 +199,19 @@
     t.style.left = L + "px";
     t.style.top = T + "px";
     t.style.visibility = "visible";
-    void t.offsetWidth;
+    void t.offsetWidth; // Forzar reflow para la transicion
     t.classList.add("vis");
   }
 
+  /**
+   * Vincula los eventos de mouse/touch al canvas para el tooltip.
+   * Solo se vincula una vez por canvas (flag rec.bound).
+   */
   function bindHover(canvas, rec) {
     if (rec.bound) return;
     rec.bound = true;
 
+    // Mouse: detectar barra bajo el cursor y resaltarla
     canvas.addEventListener("mousemove", function (e) {
       if (!rec.canvas) return;
       var r = canvas.getBoundingClientRect();
@@ -155,7 +226,7 @@
       var newActive = hit ? rec.rects.indexOf(hit) : -1;
       if (newActive !== rec.activeIdx) {
         rec.activeIdx = newActive;
-        renderChart(rec, 1);
+        renderChart(rec, 1); // Re-render instantaneo al cambiar la barra activa
       }
       if (hit) {
         showTooltip(hit.value, hit.label, r.left + hit.x + hit.w / 2, r.top + hit.y);
@@ -171,6 +242,8 @@
         renderChart(rec, 1);
       }
     });
+
+    // Touch: mostrar tooltip al tocar una barra (movil)
     canvas.addEventListener("touchstart", function (e) {
       var t = e.touches && e.touches[0];
       if (!t) return;
@@ -188,8 +261,24 @@
     }, false);
   }
 
-  /* ---------- rendering ---------- */
+  /* ------------------------------------------------------------------ */
+  /*  Renderizado del grafico                                            */
+  /* ------------------------------------------------------------------ */
 
+  /**
+   * Renderiza el grafico de barras completo en el canvas.
+   *
+   * Pasos:
+   *   1. Calcular dimensiones y DPR para HiDPI
+   *   2. Dibujar fondo y gridlines
+   *   3. Dibujar cada barra con gradiente, borde y brillo
+   *   4. Dibujar badges de valor sobre cada barra
+   *   5. Dibujar labels envueltos debajo
+   *   6. Actualizar rects para hit-testing del tooltip
+   *
+   * @param {Object} rec - Registro del canvas
+   * @param {number} ease - Factor de animacion (0 a 1, 1 = terminado)
+   */
   function renderChart(rec, ease) {
     var canvas = rec.canvas;
     var dpr = window.devicePixelRatio || 1;
@@ -198,6 +287,7 @@
     if (!W) W = 300;
     var H = rec.h || 200;
 
+    // Configurar canvas para HiDPI (retina)
     canvas.width = Math.max(1, Math.round(W * dpr));
     canvas.height = Math.max(1, Math.round(H * dpr));
     var ctx = canvas.getContext("2d");
@@ -209,9 +299,11 @@
     var ih = H - padT - padB;
     var n = Math.min(rec.labels.length, rec.values.length);
 
+    // Fondo semitransparente
     ctx.fillStyle = "rgba(255,255,255,.30)";
     ctx.fillRect(0, 0, W, H);
 
+    // Estado vacio: borde punteado + texto "Sin datos"
     if (!n) {
       ctx.strokeStyle = "rgba(20,83,45,.18)";
       ctx.lineWidth = 1.5;
@@ -229,6 +321,7 @@
       return;
     }
 
+    // Calcular escala (maximo valor)
     var max = 1;
     for (var i = 0; i < n; i++) { if (rec.values[i] > max) max = rec.values[i]; }
     var bw = iw / n;
@@ -238,7 +331,7 @@
 
     ctx.textAlign = "center";
 
-    /* gridlines */
+    // Gridlines horizontales (5 lineas sutiles)
     ctx.strokeStyle = "rgba(20,83,45,.06)";
     ctx.lineWidth = 1;
     for (var g = 1; g <= 4; g++) {
@@ -249,14 +342,14 @@
       ctx.stroke();
     }
 
-    /* baseline */
+    // Linea base
     ctx.strokeStyle = "rgba(20,83,45,.22)";
     ctx.beginPath();
     ctx.moveTo(padL, baseY + 0.5);
     ctx.lineTo(padL + iw, baseY + 0.5);
     ctx.stroke();
 
-    /* soft drop shadow under the plot area */
+    // Sombra suave debajo del area de grafico
     var sh = ctx.createLinearGradient(0, baseY, 0, baseY + 26);
     sh.addColorStop(0, "rgba(20,83,45,.12)");
     sh.addColorStop(1, "rgba(20,83,45,0)");
@@ -265,9 +358,10 @@
 
     rec.rects = [];
 
+    // Dibujar cada barra
     for (var i = 0; i < n; i++) {
       var target = (rec.values[i] / max) * ih;
-      var h = target * ease;
+      var h = target * ease; // Altura animada
       var x = padL + i * bw + (bw - barW) / 2;
       var y = baseY - h;
       var fullY = baseY - target;
@@ -277,6 +371,7 @@
         var r = Math.min(5, barW / 2);
         var active = (i === rec.activeIdx);
 
+        // Gradiente vertical de la barra
         var grad = ctx.createLinearGradient(0, y, 0, y + h);
         grad.addColorStop(0, active ? shade(color, 0.45) : shade(color, 0.32));
         grad.addColorStop(0.5, active ? shade(color, 0.2) : shade(color, 0.1));
@@ -286,6 +381,7 @@
         cornerRect(ctx, x, y, barW, h, r);
         ctx.fill();
 
+        // Borde: resaltado si activa, sutil si no
         if (active) {
           ctx.save();
           ctx.shadowColor = shade(color, -0.3);
@@ -296,13 +392,12 @@
           ctx.stroke();
           ctx.restore();
         } else {
-          /* inner frame for depth */
           ctx.strokeStyle = "rgba(255,255,255,.30)";
           ctx.lineWidth = 1;
           ctx.stroke();
         }
 
-        /* glossy highlight on the left */
+        // Efecto de brillo (reflejo a la izquierda)
         ctx.save();
         ctx.beginPath();
         cornerRect(ctx, x, y, barW, h, r);
@@ -312,17 +407,18 @@
         gl.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = gl;
         ctx.fillRect(x, y, barW * 0.55, h);
-        /* bright rounded cap on top */
+        // Brillo en la parte superior de la barra
         ctx.fillStyle = "rgba(255,255,255,.55)";
         ctx.beginPath();
         cornerRect(ctx, x, y, barW, Math.min(4, Math.max(2, h * 0.18)), r);
         ctx.fill();
         ctx.restore();
 
+        // Guardar area de la barra para hit-testing del tooltip
         rec.rects.push({ x: x, y: fullY, w: barW, h: target, value: rec.values[i], label: rec.labels[i] });
       }
 
-      /* value badge above the bar */
+      // Badge con el valor numerico sobre la barra
       var valTxt = String(rec.values[i]);
       ctx.font = "bold 11px Nunito, Segoe UI";
       var vwpx = ctx.measureText(valTxt).width;
@@ -341,7 +437,7 @@
       ctx.fillText(valTxt, x + barW / 2, pyy + pillH / 2 + 0.5);
       ctx.textBaseline = "alphabetic";
 
-      /* wrapped label below (2 lines, bold, 11px) */
+      // Label envuelto debajo de la barra (max 2 lineas)
       ctx.fillStyle = "#374151";
       ctx.font = "bold 11px Nunito, Segoe UI";
       var lines = wrapLines(ctx, rec.labels[i], Math.max(42, bw - 4));
@@ -358,12 +454,17 @@
     cornerRect(ctx, x, y, w, h, r);
   }
 
+  /**
+   * Animacion de entrada de las barras.
+   * Usa easing cubico (ease-out) para un efecto suave.
+   * @param {Object} rec - Registro del canvas
+   */
   function animate(rec) {
     var t0 = null;
     function step(ts) {
       if (t0 === null) t0 = ts;
       var p = Math.min(1, (ts - t0) / ANIM_MS);
-      var e = 1 - Math.pow(1 - p, 3);
+      var e = 1 - Math.pow(1 - p, 3); // Ease-out cubico
       renderChart(rec, e);
       if (p < 1) {
         rec.raf = raf(step);
@@ -374,16 +475,25 @@
     rec.raf = raf(step);
   }
 
-  /* ---------- public API ---------- */
+  /* ------------------------------------------------------------------ */
+  /*  API publica                                                        */
+  /* ------------------------------------------------------------------ */
 
+  /**
+   * Dibuja o actualiza un grafico de barras en el canvas indicado.
+   *
+   * Si el canvas esta oculto (display:none), espera a que sea visible
+   * antes de dibujar. Dibujar con ancho 0 estira/emborra la grafica.
+   * Se corta despues de ~60 intentos (~1 segundo) para evitar bucle infinito.
+   *
+   * @param {HTMLCanvasElement} canvas
+   * @param {string[]} labels - Etiquetas del eje X
+   * @param {number[]} values - Valores del eje Y
+   */
   function drawBars(canvas, labels, values) {
     if (!canvas || !canvas.getContext) return;
     var rec = ensureRecord(canvas);
 
-    /* Si el canvas está oculto (p.ej. la sección aún en display:none al
-       entrar a Estadísticas en un móvil lento), espera a que sea visible
-       antes de dibujar. Dibujar con ancho 0 estira/emborrona la gráfica.
-       Se corta después de ~60 intentos para no quedarse reintentando a 60fps. */
     var vis = canvas.clientWidth && canvas.clientWidth > 0;
     if (!vis) {
       rec.tries = (rec.tries || 0) + 1;
@@ -406,6 +516,10 @@
     animate(rec);
   }
 
+  /**
+   * Re-renderiza todos los graficos al cambiar el tamano de ventana.
+   * Oculta el tooltip durante el redimensionamiento.
+   */
   window.addEventListener("resize", function () {
     hideTooltip();
     for (var i = 0; i < registry.length; i++) {
@@ -415,14 +529,24 @@
     }
   });
 
+  // Ocultar tooltip al hacer scroll
   document.addEventListener("scroll", hideTooltip, true);
 
+  /**
+   * Formatea una cadena "YYYY-MM" a formato corto: "ene 26", "feb 26", etc.
+   * @param {string} ym - Cadena en formato "YYYY-MM"
+   * @returns {string} Fecha formateada
+   */
   function fmtMes(ym) {
     var meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
     var p = String(ym).split("-");
     if (p.length < 2) return ym;
     return (meses[(parseInt(p[1], 10) || 1) - 1]) + " " + String(p[0]).slice(2);
   }
+
+  /* ------------------------------------------------------------------ */
+  /*  Exponer API publica                                                */
+  /* ------------------------------------------------------------------ */
 
   window.SBStats = { drawBars: drawBars, fmtMes: fmtMes };
 })();

@@ -209,15 +209,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--l
 nav.tabs {
   display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 22px;
 }
-nav.tabs .tab {
-  flex: 0 0 auto;
-  padding: 11px 20px;
-  background: var(--soft);
-  color: var(--muted);
-  border: 2px solid rgba(255, 255, 255, .8);
-  box-shadow: var(--shadow-soft);
-  border-radius: 999px;
-}
+/* Tabs de navegacion del panel (desktop: fila horizontal de pills) */
 nav.tabs .tab {
   display: inline-flex;
   align-items: center;
@@ -427,6 +419,7 @@ footer.site {
 @media (max-width: 560px) {
   .auth-card { padding: 24px 20px; }
   .topbar .user-name { display: none; }
+  .topbar .badge { display: none; }
   .welcome h2 { font-size: 24px; }
   .container { padding: 18px 14px 95px; }
   .card { padding: 18px 16px; }
@@ -441,8 +434,10 @@ footer.site {
   .stat .num { font-size: 26px; }
 }
 
+/* Pantallas muy pequenas: ocultar subtitulo y badges del topbar */
 @media (max-width: 400px) {
   .topbar .app-sub { display: none; }
+  .topbar #btn-cambiar-pass { display: none; }
 }
 
 /* ---------- Privacy Modal & Badges ---------- */
