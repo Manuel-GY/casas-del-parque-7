@@ -1,6 +1,3 @@
-# Supabase credentials (contains anon key)
-config.js
-
 # OS files
 .DS_Store
 Thumbs.db
